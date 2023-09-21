@@ -48,6 +48,10 @@ module.exports.generatePdf = async (ctx) => {
       await page.emulateMediaType(opts.emulateMediaType);
     }
 
+    if (typeof opts.waitForSelector !== 'undefined' && opts.waitForSelector) {
+      await page.waitForSelector(opts.waitForSelector, { visible: true, timeout: 0 });
+    }
+
     logger.debug('MAKE PDF');
 
     ctx.body = await page.pdf(opts);
