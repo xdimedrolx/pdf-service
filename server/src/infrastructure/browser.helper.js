@@ -9,11 +9,18 @@ const getBrowser = () => {
   }
 
   browserPromise = puppeteer.launch({
+    headless: true,
     ignoreHTTPSErrors: true,
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage', // https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md#tips
+      "--no-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-setuid-sandbox",
+      "--no-first-run",
+      "--no-zygote",
+      "--proxy-server='direct://'",
+      "--proxy-bypass-list=*",
+      "--deterministic-fetch"
     ],
   });
 
@@ -37,7 +44,7 @@ const goToPage = async ({ browser, url, headers }) => {
 
   await page.goto(url, {
     waitUntil: 'networkidle0',
-    timeout: 100000,
+    timeout: 180000,
   });
 
   await page.emulateMediaType('screen');

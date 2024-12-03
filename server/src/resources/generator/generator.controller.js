@@ -26,7 +26,7 @@ module.exports.generatePdf = async (ctx) => {
     },
   }, options);
 
-  logger.debug('URL: ', url);
+  logger.info('URL: ', url);
   logger.debug('HTML: ', html);
   logger.debug('OPTIONS: ', opts);
   logger.debug('HEADERS: ', headers);
@@ -49,7 +49,7 @@ module.exports.generatePdf = async (ctx) => {
     }
 
     if (typeof opts.waitForSelector !== 'undefined' && opts.waitForSelector) {
-      await page.waitForSelector(opts.waitForSelector, { visible: true, timeout: 0 });
+      await page.waitForSelector(opts.waitForSelector, { visible: true, timeout: 60000 });
     }
 
     logger.debug('MAKE PDF');

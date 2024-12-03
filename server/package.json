@@ -28,7 +28,7 @@
     "koa-router": "^13.0.1",
     "koa-validate": "1.0.7",
     "nodemon": "1.11.0",
-    "puppeteer": "^23.9.0"
+    "puppeteer": "^23.10.0"
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",
