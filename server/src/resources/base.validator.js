@@ -13,7 +13,7 @@ const parseJoiErrors = (joiError) => {
   let resultErrors = [];
   if (joiError && joiError.details instanceof Array) {
     resultErrors = joiError.details.map((error) => {
-      const pathLastPart = error.path.slice(error.path.length - error.context.key.length);
+      const pathLastPart = error.context.key ? error.path.slice(error.path.length - error.context.key.length) : error.path;
 
       if (pathLastPart === error.context.key) {
         return { [error.path]: error.message };

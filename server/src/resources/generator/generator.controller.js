@@ -54,7 +54,7 @@ module.exports.generatePdf = async (ctx) => {
 
     logger.debug('MAKE PDF');
 
-    ctx.body = await page.pdf(opts);
+    ctx.body = Buffer.from(await page.pdf(opts));
     await page.close();
   } catch (e) {
     await closeBrowser(browser);
@@ -94,9 +94,9 @@ module.exports.generateImage = async (ctx) => {
     
     logger.debug('MAKE IMAGE');
 
-    ctx.body = await page.screenshot({
+    ctx.body = Buffer.from(await page.screenshot({
       fullPage: true,
-    }, options);
+    }, options));
 
     await page.close();
   } catch (e) {
