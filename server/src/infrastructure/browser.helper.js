@@ -49,10 +49,17 @@ const goToPage = async ({ browser, url, headers }) => {
 
   page.on('console', (...args) => logger.debug('PAGE LOG:', ...args));
 
-  page.on('error', (err) => {
+  page.on('error', async (err) => {
     logger.error(`Error event emitted: ${err}`);
     logger.error(err.stack);
-    closeBrowser(browser);
+
+    try {
+      await close.page();
+    } catch (e) {
+      logger.error(`Failed to close page: ${err}`);
+    }
+
+    // closeBrowser(browser);
   });
 
   return page;
