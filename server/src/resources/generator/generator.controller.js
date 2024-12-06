@@ -33,8 +33,9 @@ module.exports.generatePdf = async (ctx) => {
 
   const browser = await getBrowser();
 
+  let page = null;
   try {
-    const page = await goToPage({
+    page = await goToPage({
       browser,
       headers,
       url: url || 'data:text/html,<!DOCTYPE html><html lang="en">',
@@ -55,9 +56,16 @@ module.exports.generatePdf = async (ctx) => {
     logger.debug('MAKE PDF');
 
     ctx.body = Buffer.from(await page.pdf(opts));
+
     await page.close();
   } catch (e) {
-    await closeBrowser(browser);
+    if (page) {
+      try {
+        await page.close();
+      } catch (e) {
+        await closeBrowser(browser);
+      }
+    }
     throw e;
   }
 };
@@ -81,8 +89,9 @@ module.exports.generateImage = async (ctx) => {
   logger.debug('OPTIONS: ', options);
   logger.debug('HEADERS: ', headers);
 
+  let page = null;
   try {
-    const page = await goToPage({
+    page = await goToPage({
       browser,
       headers,
       url: url || 'data:text/html,<!DOCTYPE html><html lang="en">',
@@ -100,7 +109,15 @@ module.exports.generateImage = async (ctx) => {
 
     await page.close();
   } catch (e) {
-    await closeBrowser(browser);
+    if (page) {
+      try {
+        await page.close();
+      } catch (e) {
+        await closeBrowser(browser);
+      }
+    }
+
+    // await closeBrowser(browser);
     throw e;
   }
 };
