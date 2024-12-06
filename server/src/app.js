@@ -2,6 +2,7 @@
 // for example: require('lib/mongo/idGenerator')
 // all options can be found here: https://gist.github.com/branneman/8048520
 require('app-module-path').addPath(__dirname);
+require('process-events');
 global.logger = require('logger');
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';

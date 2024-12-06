@@ -4,7 +4,7 @@ const {
   generateImageValidator,
   generatePdfValidator,
 } = require('./validators');
-const { getBrowser, closeBrowser, goToPage } = require('infrastructure/browser.helper');
+const { getBrowser, goToPage } = require('infrastructure/browser.helper');
 
 module.exports.generatePdf = async (ctx) => {
   const result = await generatePdfValidator.validate(ctx);
@@ -56,17 +56,12 @@ module.exports.generatePdf = async (ctx) => {
     logger.debug('MAKE PDF');
 
     ctx.body = Buffer.from(await page.pdf(opts));
-
-    await page.close();
   } catch (e) {
-    if (page) {
-      try {
-        await page.close();
-      } catch (e) {
-        await closeBrowser(browser);
-      }
-    }
     throw e;
+  } finally {
+    if (page) {
+      await page.close();
+    }
   }
 };
 
@@ -106,18 +101,11 @@ module.exports.generateImage = async (ctx) => {
     ctx.body = Buffer.from(await page.screenshot({
       fullPage: true,
     }, options));
-
-    await page.close();
   } catch (e) {
-    if (page) {
-      try {
-        await page.close();
-      } catch (e) {
-        await closeBrowser(browser);
-      }
-    }
-
-    // await closeBrowser(browser);
     throw e;
+  } finally {
+    if (page) {
+      await page.close();
+    }
   }
 };
