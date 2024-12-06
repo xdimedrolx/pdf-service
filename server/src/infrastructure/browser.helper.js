@@ -11,6 +11,7 @@ const getBrowser = () => {
   browserPromise = puppeteer.launch({
     headless: true,
     ignoreHTTPSErrors: true,
+    timeout: 0,
     args: [
       "--no-sandbox",
       "--disable-gpu",
@@ -41,6 +42,8 @@ const goToPage = async ({ browser, url, headers }) => {
   if (headers && Object.keys(headers).length) {
     await page.setExtraHTTPHeaders(headers);
   }
+
+  await page.setDefaultNavigationTimeout(0);
 
   await page.goto(url, {
     waitUntil: 'networkidle0',
