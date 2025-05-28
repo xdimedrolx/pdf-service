@@ -53,6 +53,23 @@ module.exports.generatePdf = async (ctx) => {
       await page.waitForSelector(opts.waitForSelector, { visible: true, timeout: 60000 });
     }
 
+    if (typeof opts.waitIframeLoading !== 'undefined' && opts.waitIframeLoading) {
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          const iframe = document.querySelector(opts.waitIframeLoading);
+          if (iframe.contentDocument.readyState === 'complete') {
+            resolve();
+          } else {
+            iframe.onload = resolve;
+          }
+        });
+      });
+    }
+
+    if (typeof opts.waitForTimeout !== 'undefined' && opts.waitForTimeout) {
+      await page.waitForTimeout(opts.waitForTimeout);
+    }
+
     logger.debug('MAKE PDF');
 
     ctx.body = Buffer.from(await page.pdf(opts));
