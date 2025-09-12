@@ -1,4 +1,5 @@
 const logger = require('logger');
+const { setTimeout } = require('node:timers/promises');
 
 const {
   generateImageValidator,
@@ -39,6 +40,7 @@ module.exports.generatePdf = async (ctx) => {
       browser,
       headers,
       url: url || 'data:text/html,<!DOCTYPE html><html lang="en">',
+      options: opts
     });
 
     if (html) {
@@ -67,7 +69,7 @@ module.exports.generatePdf = async (ctx) => {
     }
 
     if (typeof opts.waitForTimeout !== 'undefined' && opts.waitForTimeout) {
-      await page.waitForTimeout(opts.waitForTimeout);
+      await setTimeout(opts.waitForTimeout);
     }
 
     logger.debug('MAKE PDF');

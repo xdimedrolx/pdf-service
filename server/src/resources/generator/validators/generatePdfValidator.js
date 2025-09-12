@@ -19,6 +19,7 @@ const schema = Joi.object().keys({
     waitForSelector: Joi.string(),
     waitIframeLoading: Joi.string(),
     waitForTimeout: Joi.number(),
+    waitUntil: Joi.string().allow('load', 'domcontentloaded', 'networkidle0', 'networkidle2'),
     emulateMediaType: Joi.string().allow('print', 'screen'),
     margin: Joi.object().keys({
       top: Joi.string(),

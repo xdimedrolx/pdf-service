@@ -34,14 +34,14 @@ const closeBrowser = (browser) => {
   return browser.close();
 };
 
-const goToPage = async ({ browser, url, headers }) => {
+const goToPage = async ({ browser, url, headers, options }) => {
   const page = await browser.newPage();
   if (headers && Object.keys(headers).length) {
     await page.setExtraHTTPHeaders(headers);
   }
 
   await page.goto(url, {
-    waitUntil: 'networkidle0',
+    waitUntil: typeof options.waitUntil !== 'undefined' && options.waitUntil ? options.waitUntil : 'networkidle0',
     timeout: 180000,
   });
 
