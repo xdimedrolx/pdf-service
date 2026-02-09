@@ -1,7 +1,12 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { registerGeneratorRoutes } from './routes/generator.routes.js';
-import { issuesToErrors } from './validation/errors.js';
+import { randomUUID } from 'node:crypto';
+import {
+  issuesToErrors,
+  normalizeErrorToErrors,
+  serializeErrorDetails,
+} from './validation/errors.js';
 import { logger } from './logger.js';
 
 export const createApp = ({ controller }) => {
@@ -10,20 +15,42 @@ export const createApp = ({ controller }) => {
       if (result.success) {
         return;
       }
-      return c.json({ errors: issuesToErrors(result.error.issues) }, 400);
+
+      const requestLogger = c.get('logger') ?? logger;
+      const correlationId = c.get('correlationId');
+      const errors = issuesToErrors(result.error.issues);
+
+      requestLogger.warn({ errors }, 'Validation failed');
+
+      return c.json({ correlationId, errors }, 400);
     },
   });
 
   app.use('*', async (c, next) => {
-    const startedAt = Date.now();
-    await next();
+    const correlationId = c.req.header('x-correlation-id') ?? randomUUID();
+    const requestLogger = logger.child({ correlationId });
 
-    logger.info({
+    c.set('correlationId', correlationId);
+    c.set('logger', requestLogger);
+    c.header('x-correlation-id', correlationId);
+
+    requestLogger.info({
       method: c.req.method,
       path: c.req.path,
-      status: c.res.status,
-      durationMs: Date.now() - startedAt,
-    }, 'Request processed');
+      query: c.req.query(),
+    }, 'Incoming request');
+
+    const startedAt = Date.now();
+    try {
+      await next();
+    } finally {
+      requestLogger.info({
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        durationMs: Date.now() - startedAt,
+      }, 'Request completed');
+    }
   });
 
   app.get('/health', (c) => c.json({ ok: true }));
@@ -41,8 +68,15 @@ export const createApp = ({ controller }) => {
   app.get('/docs', swaggerUI({ url: '/openapi.json' }));
 
   app.onError((error, c) => {
-    logger.error({ err: error }, 'Unhandled error');
-    return c.json({ errors: [{ _global: 'An error has occurred' }] }, 500);
+    const requestLogger = c.get('logger') ?? logger;
+    const correlationId = c.get('correlationId');
+    const errors = normalizeErrorToErrors(error);
+    const details = serializeErrorDetails(error);
+
+    requestLogger.error({ err: error, errors, details }, 'Unhandled error');
+
+    const status = Number.isInteger(error?.status) ? error.status : 500;
+    return c.json({ correlationId, errors, details }, status);
   });
 
   return app;

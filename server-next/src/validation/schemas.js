@@ -60,5 +60,11 @@ export const generatePdfSchema = withEitherUrlOrHtml(baseBodySchema.extend({ opt
 export const generateImageSchema = withEitherUrlOrHtml(baseBodySchema.extend({ options: imageOptionsSchema }));
 
 export const errorSchema = z.object({
+  correlationId: z.string().optional(),
   errors: z.array(z.record(z.string())),
+  details: z.object({
+    name: z.string(),
+    message: z.string(),
+    stack: z.string().nullable(),
+  }).optional(),
 });

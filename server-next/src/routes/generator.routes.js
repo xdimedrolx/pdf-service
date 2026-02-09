@@ -93,7 +93,10 @@ const imageRoute = createRoute({
 export const registerGeneratorRoutes = (app, controller) => {
   app.openapi(pdfRoute, async (c) => {
     const payload = c.req.valid('json');
-    const result = await controller.generatePdf(payload);
+    const result = await controller.generatePdf(payload, {
+      logger: c.get('logger'),
+      correlationId: c.get('correlationId'),
+    });
 
     c.header('Content-Type', result.contentType);
     c.header('Content-Disposition', `attachment; filename="${result.fileName}"`);
@@ -102,7 +105,10 @@ export const registerGeneratorRoutes = (app, controller) => {
 
   app.openapi(imageRoute, async (c) => {
     const payload = c.req.valid('json');
-    const result = await controller.generateImage(payload);
+    const result = await controller.generateImage(payload, {
+      logger: c.get('logger'),
+      correlationId: c.get('correlationId'),
+    });
 
     c.header('Content-Type', result.contentType);
     c.header('Content-Disposition', `attachment; filename="${result.fileName}"`);
