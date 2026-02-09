@@ -18,9 +18,26 @@ export const normalizeErrorToErrors = (error) => {
 };
 
 export const serializeErrorDetails = (error) => {
+  if (error?.details && typeof error.details === 'object') {
+    return error.details;
+  }
+
   return {
     name: error?.name ?? 'Error',
     message: error?.message ?? 'Unknown error',
-    stack: error?.stack ?? null,
   };
+};
+
+export const resolveErrorStatus = (error) => {
+  if (Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599) {
+    return error.status;
+  }
+  return 500;
+};
+
+export const resolveErrorCode = (error) => {
+  if (typeof error?.code === 'string' && error.code.trim().length > 0) {
+    return error.code;
+  }
+  return 'INTERNAL_ERROR';
 };

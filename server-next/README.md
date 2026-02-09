@@ -88,7 +88,7 @@ make docker-release IMAGE=myrepo/pdf-service VERSION=0.7.1
 
 ### `POST /pdf` options
 
-`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitIframeLoading`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
+`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
 
 ### `POST /image` options
 
@@ -110,3 +110,12 @@ make docker-release IMAGE=myrepo/pdf-service VERSION=0.7.1
 - `NAVIGATION_TIMEOUT_MS` (default `180000`)
 - `RENDER_TIMEOUT_MS` (default `180000`)
 - `LOG_LEVEL`
+
+## Ошибки
+
+- Все ошибки логируются с `correlationId`.
+- `correlationId` возвращается клиенту в заголовке `x-correlation-id` и в error body.
+- Для timeout в `waitForSelector` возвращается:
+  - HTTP `504`
+  - `code: "WAIT_FOR_SELECTOR_TIMEOUT"`
+  - `details: { selector, timeoutMs }`

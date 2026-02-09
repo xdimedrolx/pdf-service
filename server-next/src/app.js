@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto';
 import {
   issuesToErrors,
   normalizeErrorToErrors,
+  resolveErrorCode,
+  resolveErrorStatus,
   serializeErrorDetails,
 } from './validation/errors.js';
 import { logger } from './logger.js';
@@ -72,11 +74,12 @@ export const createApp = ({ controller }) => {
     const correlationId = c.get('correlationId');
     const errors = normalizeErrorToErrors(error);
     const details = serializeErrorDetails(error);
+    const code = resolveErrorCode(error);
+    const status = resolveErrorStatus(error);
 
     requestLogger.error({ err: error, errors, details }, 'Unhandled error');
 
-    const status = Number.isInteger(error?.status) ? error.status : 500;
-    return c.json({ correlationId, errors, details }, status);
+    return c.json({ correlationId, code, errors, details }, status);
   });
 
   return app;

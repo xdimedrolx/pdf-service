@@ -1,6 +1,10 @@
 import { applyPdfWaitOptions, defaultPdfOptions, navigate } from '../browser/render.js';
 
-export const createGeneratorController = ({ browserPool, navigationTimeoutMs, logger }) => {
+export const createGeneratorController = ({
+  browserPool,
+  navigationTimeoutMs,
+  logger,
+}) => {
   const generatePdf = async ({ url, html, options, headers }, context = {}) => {
     const requestLogger = context.logger ?? logger;
     const pdfOptions = defaultPdfOptions(options);

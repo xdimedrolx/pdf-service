@@ -19,6 +19,7 @@ const pdfOptionsSchema = z.object({
   width: z.string().optional(),
   height: z.string().optional(),
   waitForSelector: z.string().optional(),
+  waitForSelectorTimeoutMs: z.number().positive().optional(),
   waitIframeLoading: z.string().optional(),
   waitForTimeout: z.number().optional(),
   waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle0', 'networkidle2']).optional(),
@@ -61,10 +62,7 @@ export const generateImageSchema = withEitherUrlOrHtml(baseBodySchema.extend({ o
 
 export const errorSchema = z.object({
   correlationId: z.string().optional(),
+  code: z.string().optional(),
   errors: z.array(z.record(z.string())),
-  details: z.object({
-    name: z.string(),
-    message: z.string(),
-    stack: z.string().nullable(),
-  }).optional(),
+  details: z.record(z.unknown()).optional(),
 });

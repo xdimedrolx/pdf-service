@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import { AppError } from '../errors/app-error.js';
 
 export const defaultPdfOptions = (options = {}) => ({
   printBackground: true,
@@ -37,10 +38,24 @@ export const applyPdfWaitOptions = async (page, options = {}) => {
   }
 
   if (options.waitForSelector) {
-    await page.waitForSelector(options.waitForSelector, {
-      visible: true,
-      timeout: 60_000,
-    });
+    const selectorTimeoutMs = options.waitForSelectorTimeoutMs ?? 30_000;
+    try {
+      await page.waitForSelector(options.waitForSelector, {
+        visible: true,
+        timeout: selectorTimeoutMs,
+      });
+    } catch (error) {
+      throw new AppError({
+        status: 504,
+        code: 'WAIT_FOR_SELECTOR_TIMEOUT',
+        message: `Timed out waiting for selector ${options.waitForSelector}`,
+        details: {
+          selector: options.waitForSelector,
+          timeoutMs: selectorTimeoutMs,
+        },
+        cause: error,
+      });
+    }
   }
 
   if (options.waitIframeLoading) {

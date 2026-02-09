@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createApp } from '../src/app.js';
 import { createGeneratorController } from '../src/controllers/generator.controller.js';
 
-const createFakeBrowserPool = () => {
+const createFakeBrowserPool = ({ failOnWaitForSelector = false } = {}) => {
   const calls = [];
 
   const page = {
@@ -24,6 +24,11 @@ const createFakeBrowserPool = () => {
     },
     async waitForSelector(selector, options) {
       calls.push({ method: 'waitForSelector', value: { selector, options } });
+      if (failOnWaitForSelector) {
+        const error = new Error(`Waiting for selector \`${selector}\` failed`);
+        error.name = 'TimeoutError';
+        throw error;
+      }
     },
     async evaluate() {
       calls.push({ method: 'evaluate' });
@@ -46,13 +51,14 @@ const createFakeBrowserPool = () => {
   };
 };
 
-const createTestApp = () => {
-  const browserPool = createFakeBrowserPool();
+const createTestApp = ({ failOnWaitForSelector = false } = {}) => {
+  const browserPool = createFakeBrowserPool({ failOnWaitForSelector });
   const controller = createGeneratorController({
     browserPool,
     navigationTimeoutMs: 1_000,
     logger: {
       debug() {},
+      error() {},
     },
   });
 
@@ -118,6 +124,29 @@ test('POST /pdf returns 400 when url and html are missing', async () => {
   assert.equal(response.status, 400);
 
   const body = await response.json();
+  assert.ok(Array.isArray(body.errors));
+  assert.ok(body.errors.length > 0);
+});
+
+test('POST /pdf returns 504 for waitForSelector timeout with code and correlation id', async () => {
+  const { app } = createTestApp({ failOnWaitForSelector: true });
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<html><body><h1>Hello</h1></body></html>',
+      options: { waitForSelector: '#paymentActContainer' },
+    }),
+  });
+
+  assert.equal(response.status, 504);
+
+  const body = await response.json();
+  assert.equal(body.code, 'WAIT_FOR_SELECTOR_TIMEOUT');
+  assert.equal(typeof body.correlationId, 'string');
+  assert.equal(body.details.selector, '#paymentActContainer');
+  assert.equal(body.details.timeoutMs, 30000);
   assert.ok(Array.isArray(body.errors));
   assert.ok(body.errors.length > 0);
 });
