@@ -39,6 +39,36 @@ cd server-next
 docker compose up --build
 ```
 
+### Автоматизация release образа
+
+В директории есть `Makefile` и файл `VERSION`.
+
+Показать текущую версию:
+
+```bash
+cd server-next
+make version
+```
+
+Установить версию:
+
+```bash
+make set-version VERSION=0.7.0
+```
+
+Собрать и отправить образ:
+
+```bash
+make docker-release
+```
+
+По умолчанию используется репозиторий `xdimedrolx/pdf-service`.
+Можно переопределить:
+
+```bash
+make docker-release IMAGE=myrepo/pdf-service VERSION=0.7.1
+```
+
 ## API
 
 - `POST /pdf`
