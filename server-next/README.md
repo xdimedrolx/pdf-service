@@ -17,6 +17,28 @@ npm install
 npm run start
 ```
 
+## Docker
+
+Сборка образа:
+
+```bash
+cd server-next
+docker build -t pdf-service-next .
+```
+
+Запуск контейнера:
+
+```bash
+docker run --rm -p 4444:3000 pdf-service-next
+```
+
+Запуск через compose:
+
+```bash
+cd server-next
+docker compose up --build
+```
+
 ## API
 
 - `POST /pdf`
