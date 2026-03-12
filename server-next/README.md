@@ -96,17 +96,19 @@ make docker-release IMAGE=myrepo/pdf-service VERSION=0.7.1
 
 ## Анти-OOM
 
-- Пул браузеров (`BROWSER_POOL_SIZE`, по умолчанию 2).
+- Пул браузеров (`BROWSER_POOL_SIZE`, по умолчанию 1).
 - Ограничение параллелизма на уровне пула.
-- Рециклинг браузера после лимита рендеров (`BROWSER_MAX_PAGES_PER_INSTANCE`, по умолчанию 200).
+- Рециклинг браузера после лимита рендеров (`BROWSER_MAX_PAGES_PER_INSTANCE`, по умолчанию 50).
+- Принудительный рециклинг браузера после ошибочного рендера или timeout.
 - Таймаут рендера (`RENDER_TIMEOUT_MS`).
+- В логах старта и recycle пишутся PID браузеров и snapshot памяти Node.js.
 
 ## Переменные окружения
 
 - `HOST` (default `0.0.0.0`)
 - `PORT` (default `3000`)
-- `BROWSER_POOL_SIZE` (default `2`)
-- `BROWSER_MAX_PAGES_PER_INSTANCE` (default `200`)
+- `BROWSER_POOL_SIZE` (default `1`)
+- `BROWSER_MAX_PAGES_PER_INSTANCE` (default `50`)
 - `NAVIGATION_TIMEOUT_MS` (default `180000`)
 - `RENDER_TIMEOUT_MS` (default `180000`)
 - `LOG_LEVEL`

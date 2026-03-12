@@ -11,6 +11,16 @@ import {
 } from './validation/errors.js';
 import { logger } from './logger.js';
 
+const getNodeMemoryUsageMiB = () => {
+  const memory = process.memoryUsage();
+
+  return {
+    nodeRssMiB: Math.round(memory.rss / (1024 * 1024)),
+    nodeHeapUsedMiB: Math.round(memory.heapUsed / (1024 * 1024)),
+    nodeExternalMiB: Math.round(memory.external / (1024 * 1024)),
+  };
+};
+
 export const createApp = ({ controller }) => {
   const app = new OpenAPIHono({
     defaultHook: (result, c) => {
@@ -51,6 +61,7 @@ export const createApp = ({ controller }) => {
         path: c.req.path,
         status: c.res.status,
         durationMs: Date.now() - startedAt,
+        ...getNodeMemoryUsageMiB(),
       }, 'Request completed');
     }
   });

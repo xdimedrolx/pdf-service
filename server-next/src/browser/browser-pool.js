@@ -29,11 +29,31 @@ const withTimeout = async (promise, timeoutMs) => {
   }
 };
 
+const defaultLaunchBrowser = () => puppeteer.launch(launchArgs);
+
+const getNodeMemoryUsageMiB = () => {
+  const memory = process.memoryUsage();
+
+  return {
+    nodeRssMiB: Math.round(memory.rss / (1024 * 1024)),
+    nodeHeapUsedMiB: Math.round(memory.heapUsed / (1024 * 1024)),
+    nodeExternalMiB: Math.round(memory.external / (1024 * 1024)),
+  };
+};
+
 export class BrowserPool {
-  constructor({ size, maxPagesPerBrowser, renderTimeoutMs }) {
+  constructor({
+    size,
+    maxPagesPerBrowser,
+    renderTimeoutMs,
+    launchBrowser = defaultLaunchBrowser,
+    loggerInstance = logger,
+  }) {
     this.size = size;
     this.maxPagesPerBrowser = maxPagesPerBrowser;
     this.renderTimeoutMs = renderTimeoutMs;
+    this.launchBrowser = launchBrowser;
+    this.logger = loggerInstance;
     this.browsers = [];
     this.renderCount = [];
     this.roundRobinIndex = 0;
@@ -42,12 +62,20 @@ export class BrowserPool {
   }
 
   async init() {
+    const browserPids = [];
+
     for (let i = 0; i < this.size; i += 1) {
-      this.browsers[i] = await puppeteer.launch(launchArgs);
+      this.browsers[i] = await this.launchBrowser();
       this.renderCount[i] = 0;
+      browserPids.push(this.browsers[i]?.process?.()?.pid ?? null);
     }
 
-    logger.info({ size: this.size }, 'Browser pool initialized');
+    this.logger.info({
+      size: this.size,
+      maxPagesPerBrowser: this.maxPagesPerBrowser,
+      browserPids,
+      ...getNodeMemoryUsageMiB(),
+    }, 'Browser pool initialized');
   }
 
   async close() {
@@ -56,7 +84,7 @@ export class BrowserPool {
       try {
         await browser.close();
       } catch (error) {
-        logger.warn({ err: error }, 'Failed to close browser');
+        this.logger.warn({ err: error }, 'Failed to close browser');
       }
     }));
   }
@@ -66,19 +94,55 @@ export class BrowserPool {
       const idx = await this.getBrowserIndex();
       const browser = this.browsers[idx];
       const page = await browser.newPage();
+      const browserPid = browser?.process?.()?.pid ?? null;
+      const startedAt = Date.now();
+      let recycleReason = null;
 
       try {
+        if (typeof page.setCacheEnabled === 'function') {
+          await page.setCacheEnabled(false);
+        }
+
         this.renderCount[idx] += 1;
         return await withTimeout(worker(page), this.renderTimeoutMs);
+      } catch (error) {
+        recycleReason = error.message?.startsWith('Render timeout')
+          ? 'render-timeout'
+          : 'render-failed';
+
+        this.logger.warn({
+          idx,
+          browserPid,
+          renderCount: this.renderCount[idx],
+          durationMs: Date.now() - startedAt,
+          queueActiveCount: this.limiter.activeCount,
+          queuePendingCount: this.limiter.pendingCount,
+          ...getNodeMemoryUsageMiB(),
+          err: error,
+        }, 'Render failed, browser will be recycled');
+
+        throw error;
       } finally {
         try {
           await page.close();
         } catch (error) {
-          logger.warn({ err: error }, 'Failed to close page');
+          this.logger.warn({ err: error }, 'Failed to close page');
         }
 
-        if (this.renderCount[idx] >= this.maxPagesPerBrowser) {
-          await this.replaceBrowser(idx);
+        if (recycleReason) {
+          await this.replaceBrowser(idx, recycleReason);
+        } else if (this.renderCount[idx] >= this.maxPagesPerBrowser) {
+          await this.replaceBrowser(idx, 'max-pages');
+        } else {
+          this.logger.debug({
+            idx,
+            browserPid,
+            renderCount: this.renderCount[idx],
+            durationMs: Date.now() - startedAt,
+            queueActiveCount: this.limiter.activeCount,
+            queuePendingCount: this.limiter.pendingCount,
+            ...getNodeMemoryUsageMiB(),
+          }, 'Render completed');
         }
       }
     });
@@ -93,11 +157,11 @@ export class BrowserPool {
       return idx;
     }
 
-    await this.replaceBrowser(idx);
+    await this.replaceBrowser(idx, 'browser-disconnected');
     return idx;
   }
 
-  async replaceBrowser(idx) {
+  async replaceBrowser(idx, reason = 'manual') {
     if (this.replacing.has(idx)) {
       await this.replacing.get(idx);
       return;
@@ -105,17 +169,33 @@ export class BrowserPool {
 
     const promise = (async () => {
       const old = this.browsers[idx];
+      const oldPid = old?.process?.()?.pid ?? null;
+      const completedRenders = this.renderCount[idx] ?? 0;
+
       try {
         if (old) {
           await old.close();
         }
       } catch (error) {
-        logger.warn({ err: error }, 'Failed to close old browser');
+        this.logger.warn({
+          idx,
+          reason,
+          oldPid,
+          completedRenders,
+          err: error,
+        }, 'Failed to close old browser');
       }
 
-      this.browsers[idx] = await puppeteer.launch(launchArgs);
+      this.browsers[idx] = await this.launchBrowser();
       this.renderCount[idx] = 0;
-      logger.info({ idx }, 'Browser recycled');
+      this.logger.info({
+        idx,
+        reason,
+        oldPid,
+        newPid: this.browsers[idx]?.process?.()?.pid ?? null,
+        completedRenders,
+        ...getNodeMemoryUsageMiB(),
+      }, 'Browser recycled');
     })();
 
     this.replacing.set(idx, promise);

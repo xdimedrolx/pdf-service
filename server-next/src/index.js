@@ -31,6 +31,7 @@ logger.info({
   host: config.host,
   port: config.port,
   poolSize: config.browserPoolSize,
+  maxPagesPerBrowser: config.maxPagesPerBrowser,
 }, 'PDF service next started');
 
 const shutdown = async (signal) => {

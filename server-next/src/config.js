@@ -10,6 +10,6 @@ export const config = {
   port: parseIntOrDefault(process.env.PORT, 3000),
   navigationTimeoutMs: parseIntOrDefault(process.env.NAVIGATION_TIMEOUT_MS, 180_000),
   renderTimeoutMs: parseIntOrDefault(process.env.RENDER_TIMEOUT_MS, 180_000),
-  browserPoolSize: Math.max(1, parseIntOrDefault(process.env.BROWSER_POOL_SIZE, 2)),
-  maxPagesPerBrowser: Math.max(1, parseIntOrDefault(process.env.BROWSER_MAX_PAGES_PER_INSTANCE, 200)),
+  browserPoolSize: Math.max(1, parseIntOrDefault(process.env.BROWSER_POOL_SIZE, 1)),
+  maxPagesPerBrowser: Math.max(1, parseIntOrDefault(process.env.BROWSER_MAX_PAGES_PER_INSTANCE, 50)),
 };
