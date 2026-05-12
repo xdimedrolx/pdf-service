@@ -249,3 +249,58 @@ test('applyPdfWaitOptions: extractIframeContent is silent when the iframe is cro
   const setContentCall = page.calls.find((call) => call.method === 'setContent');
   assert.equal(setContentCall, undefined);
 });
+
+test('applyPdfWaitOptions: waitForTimeout completes before extractIframeContent runs', async () => {
+  const iframe = {
+    contentDocument: {
+      readyState: 'complete',
+      documentElement: { outerHTML: '<html></html>' },
+    },
+  };
+  const documentStub = { querySelector: () => iframe };
+  const page = createPage({ documentStub });
+
+  const originalSetContent = page.setContent;
+  let setContentAt = null;
+  page.setContent = async (...args) => {
+    setContentAt = Date.now();
+    return originalSetContent.call(page, ...args);
+  };
+
+  const startedAt = Date.now();
+  await applyPdfWaitOptions(page, {
+    waitForTimeout: 50,
+    extractIframeContent: '#frame',
+  });
+
+  assert.ok(setContentAt !== null, 'setContent should have been called');
+  assert.ok(
+    setContentAt - startedAt >= 45,
+    `extract should run after waitForTimeout; elapsed=${setContentAt - startedAt}ms`,
+  );
+});
+
+test('applyPdfWaitOptions: waitForSelector runs before extractIframeContent', async () => {
+  const iframe = {
+    contentDocument: {
+      readyState: 'complete',
+      documentElement: { outerHTML: '<html></html>' },
+    },
+  };
+  const documentStub = { querySelector: () => iframe };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, {
+    waitForSelector: '#frame',
+    extractIframeContent: '#frame',
+  });
+
+  const waitIdx = page.calls.findIndex((c) => c.method === 'waitForSelector');
+  const setContentIdx = page.calls.findIndex((c) => c.method === 'setContent');
+
+  assert.ok(waitIdx !== -1 && setContentIdx !== -1);
+  assert.ok(
+    waitIdx < setContentIdx,
+    `waitForSelector (idx=${waitIdx}) should run before extract setContent (idx=${setContentIdx})`,
+  );
+});
