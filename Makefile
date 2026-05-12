@@ -7,10 +7,14 @@ VERSION_FILE ?= VERSION
 VERSION ?= $(shell test -f $(VERSION_FILE) && tr -d '[:space:]' < $(VERSION_FILE))
 TAG := $(IMAGE):$(VERSION)
 
-.PHONY: help version show-tag set-version tag-release docker-build docker-push docker-release
+.PHONY: help version show-tag set-version tag-release dev dev-docker docker-build docker-push docker-release
 
 help:
-	@echo "Targets:"
+	@echo "Local development:"
+	@echo "  make dev                     # node --watch via 'npm run dev' in server/"
+	@echo "  make dev-docker              # docker compose up with bind-mounted src + watch"
+	@echo ""
+	@echo "Release / versioning:"
 	@echo "  make version                 # show current version from $(VERSION_FILE)"
 	@echo "  make show-tag                # show final image tag"
 	@echo "  make set-version VERSION=X   # write VERSION file and sync server/package.json"
@@ -25,6 +29,12 @@ help:
 	@echo "  3. make tag-release   # pushes v\$$VERSION; CI builds image to ghcr.io and creates the GitHub Release"
 	@echo ""
 	@echo "Optional vars: IMAGE, VERSION, VERSION_FILE"
+
+dev:
+	cd server && npm run dev
+
+dev-docker:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 version:
 	@echo $(VERSION)

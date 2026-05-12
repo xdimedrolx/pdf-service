@@ -23,8 +23,10 @@ From `server/`:
 - Single test by name: `node --test --test-name-pattern "correlation id" test/generator.integration.test.js`
 
 From the repo root:
+- `make dev` — wrapper for `cd server && npm run dev` (native `node --watch`)
+- `make dev-docker` — `docker compose up --build` with [docker-compose.dev.yml](docker-compose.dev.yml) merged in; bind-mounts `server/src/` and runs `node --watch` inside the container, with `NODE_ENV=development` and `LOG_LEVEL=debug`
 - `docker build -t pdf-service ./server`
-- `docker compose up --build`
+- `docker compose up --build` — prod-style compose without the dev override
 - `make version` — print the current version
 - `make set-version VERSION=X` — write [VERSION](VERSION) **and** sync `server/package.json`
 - `make tag-release` — create + push `v$VERSION` git tag (triggers the Release workflow)

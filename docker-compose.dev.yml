@@ -1,0 +1,8 @@
+services:
+  pdf-service:
+    volumes:
+      - ./server/src:/app/src:ro
+    command: ["node", "--watch", "src/index.js"]
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
