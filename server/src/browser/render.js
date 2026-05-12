@@ -74,6 +74,23 @@ export const applyPdfWaitOptions = async (page, options = {}) => {
     }, options.waitIframeLoading);
   }
 
+  if (options.fitIframeToContent) {
+    await page.evaluate(async (selector) => {
+      const iframe = document.querySelector(selector);
+      if (!iframe || !iframe.contentDocument) {
+        return;
+      }
+
+      if (iframe.contentDocument.readyState !== 'complete') {
+        await new Promise((resolve) => {
+          iframe.addEventListener('load', () => resolve(), { once: true });
+        });
+      }
+
+      iframe.style.height = `${iframe.contentDocument.body.scrollHeight}px`;
+    }, options.fitIframeToContent);
+  }
+
   if (options.waitForTimeout) {
     await sleep(options.waitForTimeout);
   }

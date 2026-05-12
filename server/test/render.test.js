@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { applyPdfWaitOptions, defaultPdfOptions, navigate } from '../src/browser/render.js';
 import { AppError } from '../src/errors/app-error.js';
 
-const createPage = ({ failOnWaitForSelector = false } = {}) => {
+const createPage = ({ failOnWaitForSelector = false, documentStub = null } = {}) => {
   const calls = [];
 
   return {
@@ -19,8 +19,24 @@ const createPage = ({ failOnWaitForSelector = false } = {}) => {
         throw error;
       }
     },
-    async evaluate(fn, arg) {
-      calls.push({ method: 'evaluate', value: arg });
+    async evaluate(fn, ...args) {
+      calls.push({ method: 'evaluate', value: args[0] });
+
+      if (!documentStub) {
+        return;
+      }
+
+      const previousDocument = globalThis.document;
+      globalThis.document = documentStub;
+      try {
+        return await fn(...args);
+      } finally {
+        if (previousDocument === undefined) {
+          delete globalThis.document;
+        } else {
+          globalThis.document = previousDocument;
+        }
+      }
     },
     async setExtraHTTPHeaders(headers) {
       calls.push({ method: 'setExtraHTTPHeaders', value: headers });
@@ -147,4 +163,46 @@ test('applyPdfWaitOptions: sleeps for waitForTimeout milliseconds', async () => 
 
   const elapsed = Date.now() - startedAt;
   assert.ok(elapsed >= 25, `expected >= 25ms, got ${elapsed}ms`);
+});
+
+test('applyPdfWaitOptions: fitIframeToContent resizes iframe to its scrollHeight', async () => {
+  const iframe = {
+    contentDocument: {
+      readyState: 'complete',
+      body: { scrollHeight: 1234 },
+    },
+    style: {},
+  };
+  const documentStub = {
+    querySelector: (selector) => (selector === '#chart' ? iframe : null),
+  };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { fitIframeToContent: '#chart' });
+
+  const evaluateCall = page.calls.find((call) => call.method === 'evaluate');
+  assert.equal(evaluateCall?.value, '#chart');
+  assert.equal(iframe.style.height, '1234px');
+});
+
+test('applyPdfWaitOptions: fitIframeToContent is silent when the iframe is missing', async () => {
+  const documentStub = { querySelector: () => null };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { fitIframeToContent: '#missing' });
+
+  const evaluateCall = page.calls.find((call) => call.method === 'evaluate');
+  assert.equal(evaluateCall?.value, '#missing');
+});
+
+test('applyPdfWaitOptions: fitIframeToContent is silent when the iframe is cross-origin', async () => {
+  const iframe = { contentDocument: null, style: {} };
+  const documentStub = {
+    querySelector: () => iframe,
+  };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { fitIframeToContent: '#cross-origin' });
+
+  assert.equal(iframe.style.height, undefined);
 });
