@@ -266,6 +266,24 @@ test('POST /pdf with fitIframeToContent paginates over the full iframe content',
   assert.ok(pageCount >= 2, `expected >= 2 pages, got ${pageCount}`);
 });
 
+test('POST /pdf with extractIframeContent renders only the iframe inner document', async () => {
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: `${staticServerUrl}/with-iframe`,
+      options: { extractIframeContent: '#frame', format: 'A4' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
+  const pageCount = countPdfPages(buffer);
+  assert.ok(pageCount >= 2, `expected >= 2 pages, got ${pageCount}`);
+});
+
 test('POST /pdf with HTML + srcdoc iframe and fitIframeToContent paginates correctly', async () => {
   const inner = '<!DOCTYPE html><html><body style="margin:0;font-family:sans-serif;">'
     + Array.from({ length: 30 }, (_, i) =>

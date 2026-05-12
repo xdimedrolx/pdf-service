@@ -206,3 +206,46 @@ test('applyPdfWaitOptions: fitIframeToContent is silent when the iframe is cross
 
   assert.equal(iframe.style.height, undefined);
 });
+
+test('applyPdfWaitOptions: extractIframeContent replaces page with inner document HTML', async () => {
+  const iframe = {
+    contentDocument: {
+      readyState: 'complete',
+      documentElement: { outerHTML: '<html><body><h1>inner</h1></body></html>' },
+    },
+  };
+  const documentStub = {
+    querySelector: (selector) => (selector === '#frame' ? iframe : null),
+  };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { extractIframeContent: '#frame' });
+
+  const evaluateCall = page.calls.find((call) => call.method === 'evaluate');
+  assert.equal(evaluateCall?.value, '#frame');
+
+  const setContentCall = page.calls.find((call) => call.method === 'setContent');
+  assert.equal(setContentCall?.value.html, '<html><body><h1>inner</h1></body></html>');
+  assert.equal(setContentCall?.value.options?.waitUntil, 'domcontentloaded');
+});
+
+test('applyPdfWaitOptions: extractIframeContent is silent when the iframe is missing', async () => {
+  const documentStub = { querySelector: () => null };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { extractIframeContent: '#missing' });
+
+  const setContentCall = page.calls.find((call) => call.method === 'setContent');
+  assert.equal(setContentCall, undefined);
+});
+
+test('applyPdfWaitOptions: extractIframeContent is silent when the iframe is cross-origin', async () => {
+  const iframe = { contentDocument: null };
+  const documentStub = { querySelector: () => iframe };
+  const page = createPage({ documentStub });
+
+  await applyPdfWaitOptions(page, { extractIframeContent: '#cross-origin' });
+
+  const setContentCall = page.calls.find((call) => call.method === 'setContent');
+  assert.equal(setContentCall, undefined);
+});

@@ -23,7 +23,11 @@ const pdfOptionsSchema = z.object({
   waitIframeLoading: z.string().optional(),
   fitIframeToContent: z.string().optional().openapi({
     description:
-      'CSS selector for an iframe to resize. The matched iframe height is set to its scrollHeight so the parent document grows to accommodate the full content. Same-origin iframes only; missing or cross-origin selectors are silently ignored.',
+      'CSS selector for an iframe to resize. The matched iframe height is set to its scrollHeight so the parent document grows to accommodate the full content. Same-origin iframes only; missing or cross-origin selectors are silently ignored. Note: due to Chromium\'s monolithic rendering of iframes, the iframe always starts at a fresh page boundary in the resulting PDF — preceding parent content occupies its own pages. Use extractIframeContent if you want the iframe content to be the only thing in the PDF.',
+  }),
+  extractIframeContent: z.string().optional().openapi({
+    description:
+      'CSS selector for an iframe whose inner document replaces the parent document before PDF rendering. Parent wrapper (titles, surrounding HTML) is discarded; the PDF paginates over the iframe content only, with no monolithic-element constraints. Same-origin iframes only; missing or cross-origin selectors are silently ignored.',
   }),
   waitForTimeout: z.number().optional(),
   waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle0', 'networkidle2']).optional(),

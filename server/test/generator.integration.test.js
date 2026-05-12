@@ -315,3 +315,43 @@ test('POST /pdf returns 400 when fitIframeToContent is not a string', async () =
     `expected an error entry referencing fitIframeToContent, got ${JSON.stringify(body.errors)}`,
   );
 });
+
+test('POST /pdf with extractIframeContent passes the selector to page.evaluate', async () => {
+  const { app, browserPool } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<html><body><iframe id="report"></iframe></body></html>',
+      options: { extractIframeContent: '#report' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const evaluateCall = browserPool.calls.find((call) => call.method === 'evaluate');
+  assert.equal(evaluateCall?.value, '#report');
+});
+
+test('POST /pdf returns 400 when extractIframeContent is not a string', async () => {
+  const { app } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<html></html>',
+      options: { extractIframeContent: false },
+    }),
+  });
+
+  assert.equal(response.status, 400);
+
+  const body = await response.json();
+  assert.ok(Array.isArray(body.errors));
+  assert.ok(
+    body.errors.some((entry) => Object.keys(entry).some((path) => path.includes('extractIframeContent'))),
+    `expected an error entry referencing extractIframeContent, got ${JSON.stringify(body.errors)}`,
+  );
+});

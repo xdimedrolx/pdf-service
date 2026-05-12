@@ -91,7 +91,16 @@ At least one of `url` or `html` is required.
 
 ### `POST /pdf` options
 
-`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `fitIframeToContent`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
+`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `fitIframeToContent`, `extractIframeContent`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
+
+#### Iframe options
+
+Two options handle iframes whose inner content is taller than the iframe's CSS height:
+
+- `fitIframeToContent: "<selector>"` — resizes the matched iframe to its `body.scrollHeight` so its content can paginate across multiple PDF pages. **Limitation:** Chromium treats iframes as monolithic replaced elements, so the iframe always starts at a fresh page boundary — any parent content before the iframe occupies its own pages, and the iframe content begins on the next page (possibly leaving a gap). The iframe's own CSS is preserved.
+- `extractIframeContent: "<selector>"` — replaces the entire parent document with the iframe's inner document before rendering. Parent wrapper (titles, surrounding HTML) is discarded; the PDF paginates over the iframe content only with no monolithic-element constraints. Use this when you want clean pagination and the parent wrapper is not part of the output.
+
+Both options require the iframe to be same-origin (`contentDocument` accessible). Missing selectors and cross-origin iframes are silently ignored.
 
 ### `POST /image` options
 

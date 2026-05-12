@@ -33,6 +33,27 @@ export const navigate = async ({ page, url, html, headers, timeoutMs, waitUntil 
 };
 
 export const applyPdfWaitOptions = async (page, options = {}) => {
+  if (options.extractIframeContent) {
+    const innerHtml = await page.evaluate(async (selector) => {
+      const iframe = document.querySelector(selector);
+      if (!iframe || !iframe.contentDocument) {
+        return null;
+      }
+
+      if (iframe.contentDocument.readyState !== 'complete') {
+        await new Promise((resolve) => {
+          iframe.addEventListener('load', () => resolve(), { once: true });
+        });
+      }
+
+      return iframe.contentDocument.documentElement.outerHTML;
+    }, options.extractIframeContent);
+
+    if (innerHtml) {
+      await page.setContent(innerHtml, { waitUntil: 'domcontentloaded' });
+    }
+  }
+
   if (options.emulateMediaType) {
     await page.emulateMediaType(options.emulateMediaType);
   }
