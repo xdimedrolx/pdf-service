@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node --test test/e2e/*.test.js",
+    "test:all": "node --test test/*.test.js test/e2e/*.test.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",

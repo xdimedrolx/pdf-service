@@ -16,7 +16,9 @@ All `npm` commands run from `server/`. Docker builds run from the repo root with
 From `server/`:
 - `npm run start` — start the service
 - `npm run dev` — start with `node --watch`
-- `npm test` — run all tests via `node --test`
+- `npm test` — fast unit tests (mocked, no browser), `test/*.test.js` only
+- `npm run test:e2e` — real Chromium end-to-end tests under `test/e2e/`; requires Puppeteer's bundled Chromium
+- `npm run test:all` — unit + e2e
 - Single file: `node --test test/render.test.js`
 - Single test by name: `node --test --test-name-pattern "correlation id" test/generator.integration.test.js`
 
@@ -26,7 +28,7 @@ From the repo root:
 - `make version` / `make set-version VERSION=X` — read/write [VERSION](VERSION)
 - `make docker-release [VERSION=X] [IMAGE=repo/name]` — build + push tagged image
 
-Tests do not require Chromium. When reinstalling deps, set `PUPPETEER_SKIP_DOWNLOAD=true` to skip the ~170MB browser download — this is what CI does.
+The unit suite (`npm test`) does not require Chromium — set `PUPPETEER_SKIP_DOWNLOAD=true` when reinstalling deps to skip the ~170MB browser download, which is what the CI `test` job does. The CI `e2e` job installs Chromium and runs `npm run test:e2e`.
 
 ## Architecture
 
@@ -71,13 +73,18 @@ Both `generatePdfSchema` and `generateImageSchema` in [server/src/validation/sch
 
 ## Testing conventions
 
-All tests use `node:test` and mock external dependencies:
+All tests use `node:test`. Two tiers:
+
+**Unit (`test/*.test.js`)** — mocked, fast, no browser:
 - [server/test/browser-pool.test.js](server/test/browser-pool.test.js) — passes a `launchBrowser` stub to the `BrowserPool` constructor.
 - [server/test/generator.integration.test.js](server/test/generator.integration.test.js) — passes a fake `browserPool` with a `calls` array; runs against the real Hono app via `app.request(...)`.
 - [server/test/render.test.js](server/test/render.test.js) — fake `page` with a `calls` array.
 - [server/test/config.test.js](server/test/config.test.js) — uses `loadConfig(env)` with synthetic env objects; do not mutate `process.env`.
 
-There are no end-to-end tests against a real browser. Don't add tests that require Chromium.
+**E2E (`test/e2e/*.test.js`)** — real Chromium, real `BrowserPool`, real `createApp`:
+- [server/test/e2e/generator.e2e.test.js](server/test/e2e/generator.e2e.test.js) launches a real browser pool, stands up a local `http.createServer` for url-based tests, and asserts PDF/PNG/JPEG magic bytes from `app.request(...)`. Lifecycle uses top-level `before`/`after` to share the pool across tests.
+
+E2E tests are gated to the `test/e2e/` directory so they never run under `npm test`. Mirror that split when adding new tests — anything that touches Chromium goes under `test/e2e/`.
 
 ## Versioning
 
