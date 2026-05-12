@@ -1,21 +1,97 @@
-// allows require modules relative to /src folder
-// for example: require('lib/mongo/idGenerator')
-// all options can be found here: https://gist.github.com/branneman/8048520
-require('app-module-path').addPath(__dirname);
-require('process-events');
-global.logger = require('logger');
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
+import { registerGeneratorRoutes } from './routes/generator.routes.js';
+import { randomUUID } from 'node:crypto';
+import {
+  issuesToErrors,
+  normalizeErrorToErrors,
+  resolveErrorCode,
+  resolveErrorStatus,
+  serializeErrorDetails,
+} from './validation/errors.js';
+import { logger } from './logger.js';
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-const PORT = 3000;
+const getNodeMemoryUsageMiB = () => {
+  const memory = process.memoryUsage();
 
-const logger = global.logger;
-const Koa = require('koa');
+  return {
+    nodeRssMiB: Math.round(memory.rss / (1024 * 1024)),
+    nodeHeapUsedMiB: Math.round(memory.heapUsed / (1024 * 1024)),
+    nodeExternalMiB: Math.round(memory.external / (1024 * 1024)),
+  };
+};
 
-const app = new Koa();
-require('./config/koa')(app);
+export const createApp = ({ controller }) => {
+  const app = new OpenAPIHono({
+    defaultHook: (result, c) => {
+      if (result.success) {
+        return;
+      }
 
-app.listen(PORT, () => {
-  logger.warn(`Api server listening on ${PORT}, in ${process.env.NODE_ENV} mode`);
-});
+      const requestLogger = c.get('logger') ?? logger;
+      const correlationId = c.get('correlationId');
+      const errors = issuesToErrors(result.error.issues);
 
-module.exports = app;
+      requestLogger.warn({ errors }, 'Validation failed');
+
+      return c.json({ correlationId, errors }, 400);
+    },
+  });
+
+  app.use('*', async (c, next) => {
+    const correlationId = c.req.header('x-correlation-id') ?? randomUUID();
+    const requestLogger = logger.child({ correlationId });
+
+    c.set('correlationId', correlationId);
+    c.set('logger', requestLogger);
+    c.header('x-correlation-id', correlationId);
+
+    requestLogger.info({
+      method: c.req.method,
+      path: c.req.path,
+      query: c.req.query(),
+    }, 'Incoming request');
+
+    const startedAt = Date.now();
+    try {
+      await next();
+    } finally {
+      requestLogger.info({
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        durationMs: Date.now() - startedAt,
+        ...getNodeMemoryUsageMiB(),
+      }, 'Request completed');
+    }
+  });
+
+  app.get('/health', (c) => c.json({ ok: true }));
+
+  registerGeneratorRoutes(app, controller);
+
+  app.doc('/openapi.json', {
+    openapi: '3.0.0',
+    info: {
+      title: 'PDF Service',
+      version: '1.0.0',
+    },
+  });
+
+  app.get('/docs', swaggerUI({ url: '/openapi.json' }));
+
+  app.onError((error, c) => {
+    const requestLogger = c.get('logger') ?? logger;
+    const correlationId = c.get('correlationId');
+    const errors = normalizeErrorToErrors(error);
+    const details = serializeErrorDetails(error);
+    const code = resolveErrorCode(error);
+    const status = resolveErrorStatus(error);
+
+    requestLogger.error({ err: error, errors, details }, 'Unhandled error');
+
+    return c.json({ correlationId, code, errors, details }, status);
+  });
+
+  return app;
+};

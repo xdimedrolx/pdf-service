@@ -1,103 +1,130 @@
-:scroll: PDF Service
-[![All Contributors](https://img.shields.io/badge/all_contributors-6-orange.svg?style=flat-square)](#contributors)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-===========
-![Stack](https://raw.githubusercontent.com/paralect/stack/master/stack-component-template/stack.png)
+# pdf-service
 
-###### [CLIENT API](client/README.md) | [SERVER API](server/README.md) | [CONTRIBUTING](CONTRIBUTING.md)
-> Pdf service can be used for pdf generating (reports, receipts and etc.) from the html sources.
+PDF and image generator service built on Puppeteer. Fork of [paralect/pdf-service](https://github.com/paralect/pdf-service), rewritten on a modern stack.
 
-Features
-========
-Here are a few examples to get you started:
+## Stack
 
-* :rocket: Generate PDF(screenshots) from the html as a string / file.
-* :package: Build your assets without headache.
+- `hono` + `@hono/node-server`
+- `@hono/zod-openapi` + `@hono/swagger-ui`
+- `puppeteer`
+- `pino`
 
+## Run
 
-Installation
-========
-
-You should start pdf server first. It is easy to mange if you have docker:
-
-```
-docker pull paralect/pdf-service
-docker run -d -p 3000:3000 paralect/pdf-service
+```bash
+cd server
+npm install
+npm run start
 ```
 
-After that install client library:
+Tests:
 
-```
-npm i @paralect/pdf-service-client
-```
-
-Quick example
-=============
-In your js file write these lines:
-
-```
-const PdfService = require('@paralect/pdf-service-client'); // require client pdf service library
-const fs = require('fs'); // fs to write file
-
-// pdf service init
-const pdfService = new PdfService({
-  serverUrl: 'http://localhost:3000',
-  mode: 'development',
-});
-
-// generate pdf by html string
-pdfService.generatePdfByContent('<body><h1>Hello, {{name}}!</h1></body>', {
-  pdfOptions: {
-    format: 'Letter',
-  },
-  templateSystem: {
-    params: {
-      name: 'Your name',
-    },
-  },
-}).then((pdfStream) => {
-  const writeStream = fs.createWriteStream('./hello.pdf');
-
-  pdfStream.pipe(writeStream);
-
-  writeStream.on('finish', () => {
-    console.log('Hello pdf was created!');
-  });
-});
+```bash
+cd server
+npm test
 ```
 
-Execution of this code should generate pdf file with 'Hello, Your name' string.
+## Docker
 
-Full API Reference
-=================
-Explore the API documentation([client side](client/README.md) and [server side](server/README.md)) and [examples](client/samples) to learn more.
+Build image (from repo root):
 
-Change Log
-=================
+```bash
+docker build -t pdf-service ./server
+```
 
-This project adheres to [Semantic Versioning](http://semver.org/).
-Every release is documented on the Github [Releases](https://github.com/paralect/pdf-service/releases) page.
+Run container:
 
-License
-=================
+```bash
+docker run --rm -p 4444:3000 pdf-service
+```
 
-Ship is released under the [MIT License](LICENSE).
+Run via compose (from repo root):
 
-Contributing
-=================
+```bash
+docker compose up --build
+```
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+### Release image automation
 
-Contributors
-=================
+The repo root contains a `Makefile` and a `VERSION` file.
 
-Thanks goes to these wonderful people ([emoji key](https://github.com/kentcdodds/all-contributors#emoji-key)):
+Show current version:
 
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore -->
-| [<img src="https://avatars3.githubusercontent.com/u/14125982?v=4" width="100px;"/><br /><sub><b>KuhArt</b></sub>](https://github.com/KuhArt)<br />[💻](https://github.com/paralect/pdf-service/commits?author=KuhArt "Code") [📖](https://github.com/paralect/pdf-service/commits?author=KuhArt "Documentation") [🐛](https://github.com/paralect/pdf-service/issues?q=author%3AKuhArt "Bug reports") | [<img src="https://avatars2.githubusercontent.com/u/2989199?v=4" width="100px;"/><br /><sub><b>Uladzimir Mitskevich</b></sub>](https://github.com/umitskevich)<br />[🤔](#ideas-umitskevich "Ideas, Planning, & Feedback") [🐛](https://github.com/paralect/pdf-service/issues?q=author%3Aumitskevich "Bug reports") | [<img src="https://avatars1.githubusercontent.com/u/12069883?v=4" width="100px;"/><br /><sub><b>NesterenkoNikita</b></sub>](https://github.com/NesterenkoNikita)<br />[🤔](#ideas-NesterenkoNikita "Ideas, Planning, & Feedback") [🐛](https://github.com/paralect/pdf-service/issues?q=author%3ANesterenkoNikita "Bug reports") | [<img src="https://avatars3.githubusercontent.com/u/681396?v=4" width="100px;"/><br /><sub><b>Andrew Orsich</b></sub>](http://paralect.com)<br />[🤔](#ideas-anorsich "Ideas, Planning, & Feedback") [🐛](https://github.com/paralect/pdf-service/issues?q=author%3Aanorsich "Bug reports") [🎨](#design-anorsich "Design") | [<img src="https://avatars2.githubusercontent.com/u/6461311?v=4" width="100px;"/><br /><sub><b>Evgeny Zhivitsa</b></sub>](https://github.com/ezhivitsa)<br />[💻](https://github.com/paralect/pdf-service/commits?author=ezhivitsa "Code") [🎨](#design-ezhivitsa "Design") | [<img src="https://avatars2.githubusercontent.com/u/21078183?v=4" width="100px;"/><br /><sub><b>Женя Филиппович</b></sub>](https://github.com/filipochka97)<br />[🐛](https://github.com/paralect/pdf-service/issues?q=author%3Afilipochka97 "Bug reports") |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-<!-- ALL-CONTRIBUTORS-LIST:END -->
+```bash
+make version
+```
 
-This project follows the [all-contributors](https://github.com/kentcdodds/all-contributors) specification. Contributions of any kind welcome!
+Set version:
+
+```bash
+make set-version VERSION=1.0.0
+```
+
+Build and push image:
+
+```bash
+make docker-release
+```
+
+Default image repository is `xdimedrolx/pdf-service`. Override:
+
+```bash
+make docker-release IMAGE=myrepo/pdf-service VERSION=1.0.1
+```
+
+## API
+
+- `POST /pdf`
+- `POST /image`
+- `GET /health`
+- `GET /openapi.json`
+- `GET /docs`
+
+Input contract matches the original `paralect/pdf-service`:
+
+- `url?: string`
+- `html?: string`
+- `options?: object`
+- `headers?: Record<string, string>`
+
+At least one of `url` or `html` is required.
+
+### `POST /pdf` options
+
+`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
+
+### `POST /image` options
+
+`path`, `type` (`png`/`jpeg`), `quality`, `fullPage`, `omitBackground`, `clip`.
+
+## Anti-OOM
+
+- Browser pool (`BROWSER_POOL_SIZE`, default `1`).
+- Concurrency limit at the pool level.
+- Browser recycling after a render limit (`BROWSER_MAX_PAGES_PER_INSTANCE`, default `50`).
+- Forced browser recycling after a failed render or timeout.
+- Render timeout (`RENDER_TIMEOUT_MS`).
+- Startup and recycle logs include browser PIDs and a Node.js memory snapshot.
+
+## Environment variables
+
+- `HOST` (default `0.0.0.0`)
+- `PORT` (default `3000`)
+- `BROWSER_POOL_SIZE` (default `1`)
+- `BROWSER_MAX_PAGES_PER_INSTANCE` (default `50`)
+- `NAVIGATION_TIMEOUT_MS` (default `180000`)
+- `RENDER_TIMEOUT_MS` (default `180000`)
+- `LOG_LEVEL`
+
+## Errors
+
+- All errors are logged with a `correlationId`.
+- `correlationId` is returned to the client in the `x-correlation-id` header and in the error body.
+- For `waitForSelector` timeout the response is:
+  - HTTP `504`
+  - `code: "WAIT_FOR_SELECTOR_TIMEOUT"`
+  - `details: { selector, timeoutMs }`
+
+## License
+
+MIT — see [LICENSE.md](LICENSE.md). Original work © Paralect.

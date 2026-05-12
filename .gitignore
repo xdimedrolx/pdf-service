@@ -2,3 +2,5 @@ node_modules
 .idea
 .DS_Store
 src-out
+server/node_modules
+server/dist

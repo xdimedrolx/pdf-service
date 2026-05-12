@@ -1,40 +1,24 @@
 {
-  "name": "paralect-pdf-service",
-  "version": "0.6.5",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/paralect/pdf-service"
+  "name": "pdf-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PDF/image generator service. Fork of paralect/pdf-service on a modern stack.",
+  "engines": {
+    "node": ">=20.11.0"
   },
-  "description": "Service to create pdf files from html pages",
-  "main": "index.js",
   "scripts": {
-    "test": "eslint ./",
-    "development": "NODE_ENV=development nodemon --watch src src/app.js",
-    "start": "node src/app.js"
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "@paralect/common-logger": "0.1.10",
-    "app-module-path": "2.2.0",
-    "joi": "13.1.2",
-    "kcors": "2.2.1",
-    "koa": "^2.15.3",
-    "koa-bodyparser": "^4.4.1",
-    "koa-helmet": "^8.0.1",
-    "koa-logger": "^3.2.1",
-    "koa-mount": "^4.0.0",
-    "koa-router": "^13.0.1",
-    "koa-validate": "1.0.7",
-    "nodemon": "1.11.0",
-    "puppeteer": "^23.10.0"
-  },
-  "devDependencies": {
-    "babel-eslint": "7.2.3",
-    "eslint": "4.3.0",
-    "eslint-config-airbnb": "15.1.0",
-    "eslint-plugin-import": "2.7.0",
-    "eslint-plugin-react": "7.1.0"
+    "@hono/node-server": "^1.14.4",
+    "@hono/swagger-ui": "^0.5.1",
+    "@hono/zod-openapi": "^0.18.4",
+    "hono": "^4.7.2",
+    "p-limit": "^6.2.0",
+    "pino": "^9.6.0",
+    "puppeteer": "^24.1.0"
   }
 }

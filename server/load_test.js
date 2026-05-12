@@ -3,7 +3,7 @@ import { sleep, check } from 'k6';
 
 export default function () {
     const res = http.post('http://localhost:3000/pdf', JSON.stringify({
-       url: "https://metropolis.chaika.com",
+       url: "https://google.com",
        options: {
           // waitForSelector: "#test"
        }

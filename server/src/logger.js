@@ -1,3 +1,6 @@
-const createConsoleLogger = require('@paralect/common-logger').createConsoleLogger;
+import pino from 'pino';
+import { config } from './config.js';
 
-module.exports = createConsoleLogger({ isDev: process.env.DEBUG === 'true' });
+export const logger = pino({
+  level: process.env.LOG_LEVEL ?? (config.env === 'development' ? 'debug' : 'info'),
+});
