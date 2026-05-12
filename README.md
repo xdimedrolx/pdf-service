@@ -91,7 +91,7 @@ At least one of `url` or `html` is required.
 
 ### `POST /pdf` options
 
-`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
+`path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `fitIframeToContent`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
 
 ### `POST /image` options
 
