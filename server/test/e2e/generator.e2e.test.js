@@ -20,6 +20,12 @@ const PDF_MAGIC = '%PDF';
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
 
+const countPdfPages = (buffer) => {
+  const text = buffer.toString('latin1');
+  const matches = text.match(/\/Type\s*\/Page(?!s)/g);
+  return matches ? matches.length : 0;
+};
+
 before(async () => {
   pool = new BrowserPool({
     size: 1,
@@ -49,6 +55,27 @@ before(async () => {
     if (req.url === '/with-selector') {
       res.setHeader('content-type', 'text/html; charset=utf-8');
       res.end('<!DOCTYPE html><html><body><div id="ready">ready</div></body></html>');
+      return;
+    }
+
+    if (req.url === '/with-iframe') {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.end(
+        '<!DOCTYPE html><html><body style="margin:0;">'
+        + '<iframe id="frame" src="/tall" style="width:100%;height:400px;border:0;"></iframe>'
+        + '</body></html>'
+      );
+      return;
+    }
+
+    if (req.url === '/tall') {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      let html = '<!DOCTYPE html><html><body style="margin:0;">';
+      for (let i = 0; i < 30; i += 1) {
+        html += `<p style="height:100px;margin:0;background:#eee;">Block ${i}</p>`;
+      }
+      html += '</body></html>';
+      res.end(html);
       return;
     }
 
@@ -202,4 +229,39 @@ test('concurrent /pdf requests are serialized through the pool and all succeed',
     const buffer = Buffer.from(await response.arrayBuffer());
     assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
   }
+});
+
+test('POST /pdf control: tall iframe without fitIframeToContent produces a single-page PDF', async () => {
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: `${staticServerUrl}/with-iframe`,
+      options: { waitIframeLoading: '#frame', format: 'A4' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
+  assert.equal(countPdfPages(buffer), 1);
+});
+
+test('POST /pdf with fitIframeToContent paginates over the full iframe content', async () => {
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: `${staticServerUrl}/with-iframe`,
+      options: { fitIframeToContent: '#frame', format: 'A4' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
+  const pageCount = countPdfPages(buffer);
+  assert.ok(pageCount >= 2, `expected >= 2 pages, got ${pageCount}`);
 });
