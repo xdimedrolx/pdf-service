@@ -25,8 +25,10 @@ From `server/`:
 From the repo root:
 - `docker build -t pdf-service ./server`
 - `docker compose up --build`
-- `make version` / `make set-version VERSION=X` — read/write [VERSION](VERSION)
-- `make docker-release [VERSION=X] [IMAGE=repo/name]` — build + push tagged image
+- `make version` — print the current version
+- `make set-version VERSION=X` — write [VERSION](VERSION) **and** sync `server/package.json`
+- `make tag-release` — create + push `v$VERSION` git tag (triggers the Release workflow)
+- `make docker-release [VERSION=X] [IMAGE=repo/name]` — manual Docker Hub push (escape hatch; CI publishes to ghcr.io automatically)
 
 The unit suite (`npm test`) does not require Chromium — set `PUPPETEER_SKIP_DOWNLOAD=true` when reinstalling deps to skip the ~170MB browser download, which is what the CI `test` job does. The CI `e2e` job installs Chromium and runs `npm run test:e2e`.
 
@@ -86,6 +88,15 @@ All tests use `node:test`. Two tiers:
 
 E2E tests are gated to the `test/e2e/` directory so they never run under `npm test`. Mirror that split when adding new tests — anything that touches Chromium goes under `test/e2e/`.
 
-## Versioning
+## Versioning and release
 
-[VERSION](VERSION) is the source of truth for the published image tag (read by [Makefile](Makefile)). [server/package.json](server/package.json) has its own `version` field — keep them in sync manually when cutting a release. The OpenAPI document version in [server/src/app.js](server/src/app.js) is a separate hardcoded string and should be updated at the same time.
+[VERSION](VERSION) is the source of truth for the published image tag. `make set-version VERSION=X` keeps it in sync with `server/package.json`. The OpenAPI document version in [server/src/app.js](server/src/app.js) is a separate hardcoded string and should be updated at the same time.
+
+Release flow:
+
+1. `make set-version VERSION=X` — updates VERSION and `server/package.json`.
+2. Commit the bump (and any release notes work).
+3. `make tag-release` — creates and pushes an annotated `v$VERSION` tag. The Makefile refuses to tag if the working tree is dirty, the tag exists, or VERSION/package.json disagree.
+4. The push of `v*` triggers [.github/workflows/release.yml](.github/workflows/release.yml), which re-validates versions, runs unit + e2e tests, pushes the Docker image to `ghcr.io/<owner>/<repo>` (tags: `X.Y.Z`, `X.Y`, `X`, `latest`), and creates a GitHub Release with auto-generated notes.
+
+`make docker-release` still pushes to Docker Hub manually for cases where the CI path is not the right channel.
