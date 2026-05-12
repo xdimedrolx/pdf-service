@@ -265,3 +265,32 @@ test('POST /pdf with fitIframeToContent paginates over the full iframe content',
   const pageCount = countPdfPages(buffer);
   assert.ok(pageCount >= 2, `expected >= 2 pages, got ${pageCount}`);
 });
+
+test('POST /pdf with HTML + srcdoc iframe and fitIframeToContent paginates correctly', async () => {
+  const inner = '<!DOCTYPE html><html><body style="margin:0;font-family:sans-serif;">'
+    + Array.from({ length: 30 }, (_, i) =>
+      `<div style="height:80px;padding:8px;background:${i % 2 ? '#fff' : '#eef'};">Block ${i}</div>`
+    ).join('')
+    + '</body></html>';
+
+  const srcdocAttr = inner.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const parent = '<!DOCTYPE html><html><body style="margin:0;padding:20px;">'
+    + `<iframe id="frame" style="width:100%;height:400px;border:2px solid #333;" srcdoc="${srcdocAttr}"></iframe>`
+    + '</body></html>';
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: parent,
+      options: { fitIframeToContent: '#frame', format: 'A4' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
+  const pageCount = countPdfPages(buffer);
+  assert.ok(pageCount >= 2, `expected >= 2 pages for srcdoc iframe, got ${pageCount}`);
+});
