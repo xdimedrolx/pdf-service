@@ -21,6 +21,10 @@ const pdfOptionsSchema = z.object({
   waitForSelector: z.string().optional(),
   waitForSelectorTimeoutMs: z.number().positive().optional(),
   waitIframeLoading: z.string().optional(),
+  fitIframeToContent: z.string().optional().openapi({
+    description:
+      'CSS selector for an iframe to resize. The matched iframe height is set to its scrollHeight so the parent document grows to accommodate the full content. Same-origin iframes only; missing or cross-origin selectors are silently ignored.',
+  }),
   waitForTimeout: z.number().optional(),
   waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle0', 'networkidle2']).optional(),
   emulateMediaType: z.enum(['print', 'screen']).optional(),

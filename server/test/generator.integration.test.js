@@ -30,8 +30,8 @@ const createFakeBrowserPool = ({ failOnWaitForSelector = false } = {}) => {
         throw error;
       }
     },
-    async evaluate() {
-      calls.push({ method: 'evaluate' });
+    async evaluate(fn, ...args) {
+      calls.push({ method: 'evaluate', value: args[0] });
     },
     async pdf(options) {
       calls.push({ method: 'pdf', value: options });
@@ -274,4 +274,44 @@ test('POST /pdf returns 500 with INTERNAL_ERROR code for generic errors', async 
   assert.equal(typeof body.correlationId, 'string');
   assert.ok(Array.isArray(body.errors));
   assert.equal(body.details?.name, 'Error');
+});
+
+test('POST /pdf with fitIframeToContent passes the selector to page.evaluate', async () => {
+  const { app, browserPool } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<html><body><iframe id="chart"></iframe></body></html>',
+      options: { fitIframeToContent: '#chart' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const evaluateCall = browserPool.calls.find((call) => call.method === 'evaluate');
+  assert.equal(evaluateCall?.value, '#chart');
+});
+
+test('POST /pdf returns 400 when fitIframeToContent is not a string', async () => {
+  const { app } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<html></html>',
+      options: { fitIframeToContent: 123 },
+    }),
+  });
+
+  assert.equal(response.status, 400);
+
+  const body = await response.json();
+  assert.ok(Array.isArray(body.errors));
+  assert.ok(
+    body.errors.some((entry) => Object.keys(entry).some((path) => path.includes('fitIframeToContent'))),
+    `expected an error entry referencing fitIframeToContent, got ${JSON.stringify(body.errors)}`,
+  );
 });
