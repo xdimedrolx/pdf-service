@@ -4,3 +4,4 @@ node_modules
 src-out
 server/node_modules
 server/dist
+docs/superpowers/
