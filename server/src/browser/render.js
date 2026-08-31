@@ -70,16 +70,28 @@ export const waitForFonts = async (page) => {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 };
 
+// Per-event details go to debug; the returned stats let callers surface a
+// summary (counts + first failed urls) in info/error logs, so blocked
+// resources are visible in production without debug-level noise.
 export const attachPageDiagnostics = (page, logger) => {
+  const stats = { failedRequests: 0, consoleErrors: 0, failedRequestUrls: [] };
+
   page.on('requestfailed', (request) => {
+    stats.failedRequests += 1;
+    if (stats.failedRequestUrls.length < 3) {
+      stats.failedRequestUrls.push(request.url());
+    }
     logger.debug({ url: request.url(), reason: request.failure()?.errorText }, 'Page request failed');
   });
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
+      stats.consoleErrors += 1;
       logger.debug({ message: message.text() }, 'Page console error');
     }
   });
+
+  return stats;
 };
 
 export const applyPdfWaitOptions = async (page, options = {}) => {

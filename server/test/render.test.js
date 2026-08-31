@@ -450,3 +450,27 @@ test('attachPageDiagnostics: logs failed requests and console errors at debug le
   assert.equal(entries[1].message, 'Page console error');
   assert.deepEqual(entries[1].context, { message: 'blocked by CORS policy' });
 });
+
+test('attachPageDiagnostics: returns stats counting failures and keeping first failed urls', () => {
+  const page = createPage();
+  const logger = { debug() {} };
+
+  const stats = attachPageDiagnostics(page, logger);
+
+  for (let i = 0; i < 4; i += 1) {
+    page.emit('requestfailed', {
+      url: () => `https://static.example.net/font-${i}.woff`,
+      failure: () => ({ errorText: 'net::ERR_FAILED' }),
+    });
+  }
+  page.emit('console', { type: () => 'error', text: () => 'blocked by CORS policy' });
+  page.emit('console', { type: () => 'log', text: () => 'noise' });
+
+  assert.equal(stats.failedRequests, 4);
+  assert.equal(stats.consoleErrors, 1);
+  assert.deepEqual(stats.failedRequestUrls, [
+    'https://static.example.net/font-0.woff',
+    'https://static.example.net/font-1.woff',
+    'https://static.example.net/font-2.woff',
+  ]);
+});

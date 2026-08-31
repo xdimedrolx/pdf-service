@@ -14,10 +14,19 @@ export const createGeneratorController = ({
   const generatePdf = async ({ url, html, options, headers }, context = {}) => {
     const requestLogger = context.logger ?? logger;
     const pdfOptions = defaultPdfOptions(options);
+    const startedAt = Date.now();
+    let pageIssues = null;
+
+    requestLogger.info({
+      url,
+      htmlBytes: html?.length,
+      options: pdfOptions,
+      headerNames: Object.keys(headers ?? {}),
+    }, 'PDF render started');
 
     try {
       const fileBuffer = await browserPool.usePage(async (page) => {
-        attachPageDiagnostics(page, requestLogger);
+        pageIssues = attachPageDiagnostics(page, requestLogger);
         await navigate({
           page,
           url,
@@ -32,7 +41,12 @@ export const createGeneratorController = ({
         return page.pdf(pdfOptions);
       });
 
-      requestLogger.debug({ url }, 'PDF generated');
+      requestLogger.info({
+        url,
+        durationMs: Date.now() - startedAt,
+        bytes: fileBuffer.length,
+        pageIssues,
+      }, 'PDF generated');
 
       return {
         fileName: 'out.pdf',
@@ -40,7 +54,12 @@ export const createGeneratorController = ({
         buffer: fileBuffer,
       };
     } catch (error) {
-      requestLogger.error({ err: error, url }, 'PDF generation failed');
+      requestLogger.error({
+        err: error,
+        url,
+        durationMs: Date.now() - startedAt,
+        pageIssues,
+      }, 'PDF generation failed');
       throw error;
     }
   };
@@ -48,10 +67,19 @@ export const createGeneratorController = ({
   const generateImage = async ({ url, html, options = {}, headers }, context = {}) => {
     const requestLogger = context.logger ?? logger;
     const type = options.type ?? 'png';
+    const startedAt = Date.now();
+    let pageIssues = null;
+
+    requestLogger.info({
+      url,
+      htmlBytes: html?.length,
+      options,
+      headerNames: Object.keys(headers ?? {}),
+    }, 'Image render started');
 
     try {
       const fileBuffer = await browserPool.usePage(async (page) => {
-        attachPageDiagnostics(page, requestLogger);
+        pageIssues = attachPageDiagnostics(page, requestLogger);
         await navigate({
           page,
           url,
@@ -67,7 +95,13 @@ export const createGeneratorController = ({
         });
       });
 
-      requestLogger.debug({ url, type }, 'Image generated');
+      requestLogger.info({
+        url,
+        type,
+        durationMs: Date.now() - startedAt,
+        bytes: fileBuffer.length,
+        pageIssues,
+      }, 'Image generated');
 
       return {
         fileName: `out.${type}`,
@@ -75,7 +109,13 @@ export const createGeneratorController = ({
         buffer: fileBuffer,
       };
     } catch (error) {
-      requestLogger.error({ err: error, url, type }, 'Image generation failed');
+      requestLogger.error({
+        err: error,
+        url,
+        type,
+        durationMs: Date.now() - startedAt,
+        pageIssues,
+      }, 'Image generation failed');
       throw error;
     }
   };
