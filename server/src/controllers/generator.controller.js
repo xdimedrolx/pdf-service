@@ -1,4 +1,10 @@
-import { applyPdfWaitOptions, defaultPdfOptions, navigate } from '../browser/render.js';
+import {
+  applyPdfWaitOptions,
+  attachPageDiagnostics,
+  defaultPdfOptions,
+  navigate,
+  waitForFonts,
+} from '../browser/render.js';
 
 export const createGeneratorController = ({
   browserPool,
@@ -11,6 +17,7 @@ export const createGeneratorController = ({
 
     try {
       const fileBuffer = await browserPool.usePage(async (page) => {
+        attachPageDiagnostics(page, requestLogger);
         await navigate({
           page,
           url,
@@ -21,6 +28,7 @@ export const createGeneratorController = ({
         });
 
         await applyPdfWaitOptions(page, pdfOptions);
+        await waitForFonts(page);
         return page.pdf(pdfOptions);
       });
 
@@ -43,6 +51,7 @@ export const createGeneratorController = ({
 
     try {
       const fileBuffer = await browserPool.usePage(async (page) => {
+        attachPageDiagnostics(page, requestLogger);
         await navigate({
           page,
           url,
@@ -51,6 +60,7 @@ export const createGeneratorController = ({
           timeoutMs: navigationTimeoutMs,
         });
 
+        await waitForFonts(page);
         return page.screenshot({
           fullPage: options.fullPage ?? true,
           ...options,

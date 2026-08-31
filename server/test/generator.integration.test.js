@@ -7,6 +7,12 @@ const createFakeBrowserPool = ({ failOnWaitForSelector = false } = {}) => {
   const calls = [];
 
   const page = {
+    on(event) {
+      calls.push({ method: 'on', value: event });
+    },
+    async setRequestInterception(value) {
+      calls.push({ method: 'setRequestInterception', value });
+    },
     async setExtraHTTPHeaders(headers) {
       calls.push({ method: 'setExtraHTTPHeaders', value: headers });
     },
@@ -161,6 +167,29 @@ test('POST /pdf returns 504 for waitForSelector timeout with code and correlatio
   assert.ok(body.errors.length > 0);
 });
 
+test('POST /pdf with url scopes caller headers via request interception', async () => {
+  const { app, browserPool } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: 'https://example.com/report',
+      headers: { authorization: 'Bearer token' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const interceptionCall = browserPool.calls.find((call) => call.method === 'setRequestInterception');
+  assert.equal(interceptionCall?.value, true);
+  assert.equal(
+    browserPool.calls.find((call) => call.method === 'setExtraHTTPHeaders'),
+    undefined,
+    'url mode must not apply caller headers globally',
+  );
+});
+
 test('POST /pdf with url calls goto with the url', async () => {
   const { app, browserPool } = createTestApp();
 
@@ -194,6 +223,40 @@ test('POST /image returns 400 when url and html are missing', async () => {
   const body = await response.json();
   assert.ok(Array.isArray(body.errors));
   assert.ok(body.errors.some((entry) => Object.values(entry).some((message) => /url or html/.test(message))));
+});
+
+test('POST /pdf waits for webfonts before rendering the pdf', async () => {
+  const { app, browserPool } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ html: '<html><body>text</body></html>' }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const evaluateIndex = browserPool.calls.findIndex((call) => call.method === 'evaluate');
+  const pdfIndex = browserPool.calls.findIndex((call) => call.method === 'pdf');
+  assert.ok(evaluateIndex !== -1, 'fonts wait should call page.evaluate');
+  assert.ok(evaluateIndex < pdfIndex, 'fonts wait should run before page.pdf');
+});
+
+test('POST /image waits for webfonts before taking the screenshot', async () => {
+  const { app, browserPool } = createTestApp();
+
+  const response = await app.request('/image', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ html: '<html><body>text</body></html>' }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const evaluateIndex = browserPool.calls.findIndex((call) => call.method === 'evaluate');
+  const screenshotIndex = browserPool.calls.findIndex((call) => call.method === 'screenshot');
+  assert.ok(evaluateIndex !== -1, 'fonts wait should call page.evaluate');
+  assert.ok(evaluateIndex < screenshotIndex, 'fonts wait should run before page.screenshot');
 });
 
 test('GET /health returns ok', async () => {

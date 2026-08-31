@@ -12,24 +12,74 @@ export const defaultPdfOptions = (options = {}) => ({
   ...options,
 });
 
-export const navigate = async ({ page, url, html, headers, timeoutMs, waitUntil = 'networkidle0' }) => {
+// Attaching caller headers to every request (setExtraHTTPHeaders) turns cross-origin
+// CORS-mode fetches (webfonts) into preflighted requests, which CDNs commonly reject.
+// Headers are therefore scoped to the page origin via request interception.
+const applyHeadersToOrigin = async (page, headers, origin) => {
+  await page.setRequestInterception(true);
+
+  page.on('request', (request) => {
+    if (request.isInterceptResolutionHandled()) {
+      return;
+    }
+
+    let sameOrigin = false;
+    try {
+      sameOrigin = new URL(request.url()).origin === origin;
+    } catch {
+      // non-hierarchical URL (data:, about:) — never same-origin
+    }
+
+    const overrides = sameOrigin
+      ? { headers: { ...request.headers(), ...headers } }
+      : undefined;
+
+    // continue() rejects when the page is torn down mid-render; the request is gone anyway
+    request.continue(overrides).catch(() => {});
+  });
+};
+
+export const navigate = async ({ page, url, html, headers, timeoutMs, waitUntil }) => {
   if (headers && Object.keys(headers).length > 0) {
-    await page.setExtraHTTPHeaders(headers);
+    if (url) {
+      await applyHeadersToOrigin(page, headers, new URL(url).origin);
+    } else {
+      await page.setExtraHTTPHeaders(headers);
+    }
   }
 
   page.setDefaultNavigationTimeout(timeoutMs);
 
   await page.goto(url ?? 'data:text/html,<!DOCTYPE html><html lang="en"></html>', {
-    waitUntil,
+    waitUntil: waitUntil ?? 'networkidle0',
     timeout: timeoutMs,
   });
 
   if (html) {
     await page.setContent(html, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: waitUntil ?? 'domcontentloaded',
       timeout: timeoutMs,
     });
   }
+};
+
+// font-display: swap paints fallback glyphs first; without this wait the snapshot
+// can be taken before webfonts finish loading. Failed fonts settle too, so this
+// never blocks on unreachable font hosts.
+export const waitForFonts = async (page) => {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+};
+
+export const attachPageDiagnostics = (page, logger) => {
+  page.on('requestfailed', (request) => {
+    logger.debug({ url: request.url(), reason: request.failure()?.errorText }, 'Page request failed');
+  });
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      logger.debug({ message: message.text() }, 'Page console error');
+    }
+  });
 };
 
 export const applyPdfWaitOptions = async (page, options = {}) => {

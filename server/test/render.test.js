@@ -1,13 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPdfWaitOptions, defaultPdfOptions, navigate } from '../src/browser/render.js';
+import {
+  applyPdfWaitOptions,
+  attachPageDiagnostics,
+  defaultPdfOptions,
+  navigate,
+  waitForFonts,
+} from '../src/browser/render.js';
 import { AppError } from '../src/errors/app-error.js';
 
 const createPage = ({ failOnWaitForSelector = false, documentStub = null } = {}) => {
   const calls = [];
+  const handlers = {};
 
   return {
     calls,
+    handlers,
+    on(event, handler) {
+      calls.push({ method: 'on', value: event });
+      (handlers[event] ??= []).push(handler);
+    },
+    emit(event, payload) {
+      for (const handler of handlers[event] ?? []) {
+        handler(payload);
+      }
+    },
+    async setRequestInterception(value) {
+      calls.push({ method: 'setRequestInterception', value });
+    },
     async emulateMediaType(type) {
       calls.push({ method: 'emulateMediaType', value: type });
     },
@@ -70,13 +90,96 @@ test('defaultPdfOptions: uses defaults when no options provided', () => {
   assert.equal(result.margin.top, '0.4in');
 });
 
-test('navigate: sets extra headers when provided', async () => {
+const createInterceptedRequest = (url) => {
+  const state = { continued: false, continuedWith: undefined };
+
+  return {
+    state,
+    url: () => url,
+    headers: () => ({ accept: '*/*' }),
+    isInterceptResolutionHandled: () => false,
+    async continue(overrides) {
+      state.continued = true;
+      state.continuedWith = overrides;
+    },
+  };
+};
+
+test('navigate: html mode applies headers to all requests via setExtraHTTPHeaders', async () => {
   const page = createPage();
 
-  await navigate({ page, url: 'http://example.com', headers: { authorization: 'Bearer x' }, timeoutMs: 1000 });
+  await navigate({ page, html: '<html></html>', headers: { authorization: 'Bearer x' }, timeoutMs: 1000 });
 
   const headersCall = page.calls.find((c) => c.method === 'setExtraHTTPHeaders');
   assert.deepEqual(headersCall?.value, { authorization: 'Bearer x' });
+  assert.equal(page.calls.find((c) => c.method === 'setRequestInterception'), undefined);
+});
+
+test('navigate: url mode adds caller headers to same-origin requests only', async () => {
+  const page = createPage();
+
+  await navigate({
+    page,
+    url: 'https://app.example.com/report',
+    headers: { authorization: 'Bearer x', 'login-token': 't' },
+    timeoutMs: 1000,
+  });
+
+  assert.equal(page.calls.find((c) => c.method === 'setExtraHTTPHeaders'), undefined);
+  const interceptionCall = page.calls.find((c) => c.method === 'setRequestInterception');
+  assert.equal(interceptionCall?.value, true);
+
+  const [handler] = page.handlers.request ?? [];
+  assert.ok(handler, 'a request handler should be registered');
+
+  const sameOrigin = createInterceptedRequest('https://app.example.com/api/data');
+  handler(sameOrigin);
+  assert.equal(sameOrigin.state.continued, true);
+  assert.deepEqual(sameOrigin.state.continuedWith, {
+    headers: { accept: '*/*', authorization: 'Bearer x', 'login-token': 't' },
+  });
+});
+
+test('navigate: url mode continues cross-origin requests without caller headers', async () => {
+  const page = createPage();
+
+  await navigate({
+    page,
+    url: 'https://app.example.com/report',
+    headers: { authorization: 'Bearer x' },
+    timeoutMs: 1000,
+  });
+
+  const [handler] = page.handlers.request ?? [];
+  assert.ok(handler, 'a request handler should be registered');
+
+  const crossOrigin = createInterceptedRequest('https://static.example.net/font.woff');
+  handler(crossOrigin);
+  assert.equal(crossOrigin.state.continued, true);
+  assert.equal(crossOrigin.state.continuedWith, undefined);
+
+  const unparsable = createInterceptedRequest('not-a-url');
+  handler(unparsable);
+  assert.equal(unparsable.state.continued, true);
+  assert.equal(unparsable.state.continuedWith, undefined);
+});
+
+test('navigate: setContent honors an explicit waitUntil option', async () => {
+  const page = createPage();
+
+  await navigate({ page, html: '<html></html>', timeoutMs: 1000, waitUntil: 'networkidle2' });
+
+  const setContentCall = page.calls.find((c) => c.method === 'setContent');
+  assert.equal(setContentCall?.value.options.waitUntil, 'networkidle2');
+});
+
+test('navigate: setContent defaults to domcontentloaded when waitUntil is absent', async () => {
+  const page = createPage();
+
+  await navigate({ page, html: '<html></html>', timeoutMs: 1000 });
+
+  const setContentCall = page.calls.find((c) => c.method === 'setContent');
+  assert.equal(setContentCall?.value.options.waitUntil, 'domcontentloaded');
 });
 
 test('navigate: skips setExtraHTTPHeaders when headers are absent or empty', async () => {
@@ -303,4 +406,47 @@ test('applyPdfWaitOptions: waitForSelector runs before extractIframeContent', as
     waitIdx < setContentIdx,
     `waitForSelector (idx=${waitIdx}) should run before extract setContent (idx=${setContentIdx})`,
   );
+});
+
+test('waitForFonts: resolves only after document.fonts.ready settles', async () => {
+  let resolveReady;
+  const documentStub = {
+    fonts: { ready: new Promise((resolve) => { resolveReady = resolve; }) },
+  };
+  const page = createPage({ documentStub });
+
+  let settled = false;
+  const pending = waitForFonts(page).then(() => { settled = true; });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, 'must not resolve before fonts.ready');
+
+  resolveReady();
+  await pending;
+  assert.equal(settled, true);
+  assert.ok(page.calls.some((c) => c.method === 'evaluate'));
+});
+
+test('attachPageDiagnostics: logs failed requests and console errors at debug level', () => {
+  const page = createPage();
+  const entries = [];
+  const logger = { debug: (context, message) => entries.push({ context, message }) };
+
+  attachPageDiagnostics(page, logger);
+
+  page.emit('requestfailed', {
+    url: () => 'https://static.example.net/font.woff',
+    failure: () => ({ errorText: 'net::ERR_FAILED' }),
+  });
+  page.emit('console', { type: () => 'error', text: () => 'blocked by CORS policy' });
+  page.emit('console', { type: () => 'log', text: () => 'plain log noise' });
+
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0].message, 'Page request failed');
+  assert.deepEqual(entries[0].context, {
+    url: 'https://static.example.net/font.woff',
+    reason: 'net::ERR_FAILED',
+  });
+  assert.equal(entries[1].message, 'Page console error');
+  assert.deepEqual(entries[1].context, { message: 'blocked by CORS policy' });
 });

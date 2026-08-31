@@ -89,6 +89,10 @@ Input contract matches the original `paralect/pdf-service`:
 
 At least one of `url` or `html` is required.
 
+`headers` are attached only to requests going to the origin of `url` (the page itself, its redirects, same-origin assets and XHR). Third-party hosts (CDNs, font/static hosts, analytics) never see them — attaching custom headers to cross-origin CORS requests (e.g. webfonts) would force a CORS preflight, which many CDNs reject, silently breaking fonts. In `html` mode there is no page origin, so headers apply to all requests (legacy behavior).
+
+`options.waitUntil` applies to both modes: page navigation for `url`, content loading for `html` (`domcontentloaded` by default). Before rendering, the service additionally waits for `document.fonts.ready` so webfonts are never raced by the snapshot.
+
 ### `POST /pdf` options
 
 `path`, `scale`, `displayHeaderFooter`, `headerTemplate`, `footerTemplate`, `printBackground`, `landscape`, `pageRanges`, `format`, `width`, `height`, `waitForSelector`, `waitForSelectorTimeoutMs` (default `30000`), `waitIframeLoading`, `fitIframeToContent`, `extractIframeContent`, `waitForTimeout`, `waitUntil`, `emulateMediaType`, `margin`.
