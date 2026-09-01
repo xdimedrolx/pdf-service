@@ -1,6 +1,6 @@
 {
   "name": "pdf-service",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "type": "module",
   "description": "PDF/image generator service. Fork of paralect/pdf-service on a modern stack.",

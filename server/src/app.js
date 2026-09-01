@@ -82,7 +82,7 @@ export const createApp = ({ controller }) => {
     openapi: '3.0.0',
     info: {
       title: 'PDF Service',
-      version: '1.4.0',
+      version: '1.4.1',
     },
   });
 
