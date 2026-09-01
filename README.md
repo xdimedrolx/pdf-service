@@ -125,8 +125,8 @@ Both options require the iframe to be same-origin (`contentDocument` accessible)
 - `PORT` (default `3000`)
 - `BROWSER_POOL_SIZE` (default `1`)
 - `BROWSER_MAX_PAGES_PER_INSTANCE` (default `50`)
-- `NAVIGATION_TIMEOUT_MS` (default `180000`)
-- `RENDER_TIMEOUT_MS` (default `180000`)
+- `NAVIGATION_TIMEOUT_MS` (default `45000`) — page navigation / content loading budget
+- `RENDER_TIMEOUT_MS` (default `60000`) — hard cap for a whole render; keep it at or below your HTTP client's timeout, otherwise the pool keeps burning a browser for a caller that has already given up
 - `LOG_LEVEL`
 
 ## Errors

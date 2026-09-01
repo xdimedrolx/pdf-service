@@ -8,8 +8,8 @@ test('loadConfig: returns defaults when env is empty', () => {
   assert.equal(cfg.env, 'development');
   assert.equal(cfg.host, '0.0.0.0');
   assert.equal(cfg.port, 3000);
-  assert.equal(cfg.navigationTimeoutMs, 180_000);
-  assert.equal(cfg.renderTimeoutMs, 180_000);
+  assert.equal(cfg.navigationTimeoutMs, 45_000);
+  assert.equal(cfg.renderTimeoutMs, 60_000);
   assert.equal(cfg.browserPoolSize, 1);
   assert.equal(cfg.maxPagesPerBrowser, 50);
 });
