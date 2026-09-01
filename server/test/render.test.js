@@ -192,16 +192,42 @@ test('navigate: skips setExtraHTTPHeaders when headers are absent or empty', asy
   assert.equal(page2.calls.find((c) => c.method === 'setExtraHTTPHeaders'), undefined);
 });
 
-test('navigate: uses html via setContent after goto to blank when no url', async () => {
+test('navigate: html mode sets content directly on the fresh page without navigating first', async () => {
   const page = createPage();
 
   await navigate({ page, html: '<html><body>x</body></html>', timeoutMs: 1000 });
 
-  const gotoCall = page.calls.find((c) => c.method === 'goto');
-  assert.ok(gotoCall?.value.url.startsWith('data:text/html'));
+  assert.equal(
+    page.calls.find((c) => c.method === 'goto'),
+    undefined,
+    'a prior navigation breaks networkidle waits for setContent (Chromium never re-emits networkIdle after document.write)',
+  );
 
   const setContentCall = page.calls.find((c) => c.method === 'setContent');
   assert.equal(setContentCall?.value.html, '<html><body>x</body></html>');
+});
+
+test('navigate: url+html combo downgrades networkidle waits to load for setContent', async () => {
+  const page = createPage();
+
+  await navigate({
+    page,
+    url: 'https://app.example.com/base',
+    html: '<html><body>x</body></html>',
+    timeoutMs: 1000,
+    waitUntil: 'networkidle0',
+  });
+
+  const gotoCall = page.calls.find((c) => c.method === 'goto');
+  assert.equal(gotoCall?.value.url, 'https://app.example.com/base');
+  assert.equal(gotoCall?.value.options.waitUntil, 'networkidle0');
+
+  const setContentCall = page.calls.find((c) => c.method === 'setContent');
+  assert.equal(
+    setContentCall?.value.options.waitUntil,
+    'load',
+    'networkidle after a real navigation would hang forever',
+  );
 });
 
 test('applyPdfWaitOptions: applies emulateMediaType when provided', async () => {

@@ -312,3 +312,24 @@ test('POST /pdf with HTML + srcdoc iframe and fitIframeToContent paginates corre
   const pageCount = countPdfPages(buffer);
   assert.ok(pageCount >= 2, `expected >= 2 pages for srcdoc iframe, got ${pageCount}`);
 });
+
+test('POST /pdf with html and waitUntil networkidle0 renders without hanging', async () => {
+  const startedAt = Date.now();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      html: '<!DOCTYPE html><html><body><h1>networkidle html</h1></body></html>',
+      options: { format: 'A5', waitUntil: 'networkidle0' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  assert.equal(buffer.subarray(0, 4).toString('utf8'), PDF_MAGIC);
+  assert.ok(
+    Date.now() - startedAt < 30_000,
+    `render should finish promptly, took ${Date.now() - startedAt}ms`,
+  );
+});

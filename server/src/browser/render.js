@@ -50,14 +50,22 @@ export const navigate = async ({ page, url, html, headers, timeoutMs, waitUntil 
 
   page.setDefaultNavigationTimeout(timeoutMs);
 
-  await page.goto(url ?? 'data:text/html,<!DOCTYPE html><html lang="en"></html>', {
-    waitUntil: waitUntil ?? 'networkidle0',
-    timeout: timeoutMs,
-  });
+  if (url) {
+    await page.goto(url, {
+      waitUntil: waitUntil ?? 'networkidle0',
+      timeout: timeoutMs,
+    });
+  }
 
   if (html) {
+    // setContent must run on a page that has not navigated yet: after a real
+    // navigation Chromium never re-emits the networkIdle lifecycle event for
+    // the synthetic navigation setContent performs, so networkidle waits hang
+    // until the timeout. Pool pages are fresh, so pure html mode is safe; for
+    // the url+html combo the networkidle wait is downgraded to 'load'.
+    const contentWaitUntil = waitUntil ?? 'domcontentloaded';
     await page.setContent(html, {
-      waitUntil: waitUntil ?? 'domcontentloaded',
+      waitUntil: url && contentWaitUntil.startsWith('networkidle') ? 'load' : contentWaitUntil,
       timeout: timeoutMs,
     });
   }
