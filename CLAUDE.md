@@ -46,7 +46,7 @@ Each layer accepts its collaborators as parameters, which is why tests can injec
 
 ### Request flow
 
-1. `app.use('*', ...)` in [server/src/app.js](server/src/app.js) resolves a `correlationId` (from the `x-correlation-id` header or `randomUUID()`), attaches a child pino logger to the Hono context, and echoes the id back in the response header.
+1. `app.use('*', ...)` in [server/src/app.js](server/src/app.js) resolves a `correlationId` (from the `x-correlation-id` header or `randomUUID()`) and always generates a fresh `requestId`, attaches a child pino logger with both ids to the Hono context, echoes both back as `x-correlation-id` / `x-request-id` response headers, and runs the handler inside the [server/src/logger-context.js](server/src/logger-context.js) AsyncLocalStorage scope so deeper layers (notably the browser pool) log with the same ids via `getLogger()`.
 2. The route handler in [server/src/routes/generator.routes.js](server/src/routes/generator.routes.js) validates the body via `@hono/zod-openapi` and calls `controller.generatePdf` / `generateImage`.
 3. The controller in [server/src/controllers/generator.controller.js](server/src/controllers/generator.controller.js) reserves a page via `browserPool.usePage(worker)` — the pool guarantees the page is closed and the browser recycled if anything goes wrong.
 4. Page work happens in [server/src/browser/render.js](server/src/browser/render.js): `navigate` (url-or-html + headers) followed by `applyPdfWaitOptions` (selector wait, media emulation, iframe load, fixed delay).

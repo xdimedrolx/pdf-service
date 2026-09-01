@@ -31,21 +31,28 @@ export const createApp = ({ controller }) => {
 
       const requestLogger = c.get('logger') ?? logger;
       const correlationId = c.get('correlationId');
+      const requestId = c.get('requestId');
       const errors = issuesToErrors(result.error.issues);
 
       requestLogger.warn({ errors }, 'Validation failed');
 
-      return c.json({ correlationId, errors }, 400);
+      return c.json({ correlationId, requestId, errors }, 400);
     },
   });
 
   app.use('*', async (c, next) => {
+    // correlationId spans the whole call chain across services (taken from the
+    // caller when provided); requestId identifies this one request in this
+    // service and is always generated locally.
     const correlationId = c.req.header('x-correlation-id') ?? randomUUID();
-    const requestLogger = logger.child({ correlationId });
+    const requestId = randomUUID();
+    const requestLogger = logger.child({ correlationId, requestId });
 
     c.set('correlationId', correlationId);
+    c.set('requestId', requestId);
     c.set('logger', requestLogger);
     c.header('x-correlation-id', correlationId);
+    c.header('x-request-id', requestId);
 
     requestLogger.info({
       method: c.req.method,
@@ -84,6 +91,7 @@ export const createApp = ({ controller }) => {
   app.onError((error, c) => {
     const requestLogger = c.get('logger') ?? logger;
     const correlationId = c.get('correlationId');
+    const requestId = c.get('requestId');
     const errors = normalizeErrorToErrors(error);
     const details = serializeErrorDetails(error);
     const code = resolveErrorCode(error);
@@ -91,7 +99,7 @@ export const createApp = ({ controller }) => {
 
     requestLogger.error({ err: error, errors, details }, 'Unhandled error');
 
-    return c.json({ correlationId, code, errors, details }, status);
+    return c.json({ correlationId, requestId, code, errors, details }, status);
   });
 
   return app;

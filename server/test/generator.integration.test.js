@@ -418,3 +418,47 @@ test('POST /pdf returns 400 when extractIframeContent is not a string', async ()
     `expected an error entry referencing extractIframeContent, got ${JSON.stringify(body.errors)}`,
   );
 });
+
+test('every request gets its own generated x-request-id, independent of x-correlation-id', async () => {
+  const { app } = createTestApp();
+
+  const send = () => app.request('/pdf', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-correlation-id': 'chain-1',
+      'x-request-id': 'ignored-external-value',
+    },
+    body: JSON.stringify({ html: '<html></html>' }),
+  });
+
+  const first = await send();
+  const second = await send();
+
+  const firstRequestId = first.headers.get('x-request-id');
+  const secondRequestId = second.headers.get('x-request-id');
+
+  assert.ok(firstRequestId && firstRequestId.length > 0, 'x-request-id header must be set');
+  assert.notEqual(firstRequestId, 'ignored-external-value', 'request id is always generated locally');
+  assert.notEqual(firstRequestId, secondRequestId, 'each request gets a fresh request id');
+
+  assert.equal(first.headers.get('x-correlation-id'), 'chain-1');
+  assert.equal(second.headers.get('x-correlation-id'), 'chain-1');
+});
+
+test('error responses include both correlationId and requestId', async () => {
+  const { app } = createTestApp();
+
+  const response = await app.request('/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+
+  assert.equal(response.status, 400);
+
+  const body = await response.json();
+  assert.equal(typeof body.correlationId, 'string');
+  assert.equal(typeof body.requestId, 'string');
+  assert.equal(body.requestId, response.headers.get('x-request-id'));
+});
