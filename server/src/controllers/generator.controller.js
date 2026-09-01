@@ -5,6 +5,7 @@ import {
   navigate,
   waitForFonts,
 } from '../browser/render.js';
+import { getLogger } from '../logger-context.js';
 
 export const createGeneratorController = ({
   browserPool,
@@ -12,7 +13,7 @@ export const createGeneratorController = ({
   logger,
 }) => {
   const generatePdf = async ({ url, html, options, headers }, context = {}) => {
-    const requestLogger = context.logger ?? logger;
+    const requestLogger = context.logger ?? getLogger(logger);
     const pdfOptions = defaultPdfOptions(options);
     const startedAt = Date.now();
     let pageIssues = null;
@@ -65,7 +66,7 @@ export const createGeneratorController = ({
   };
 
   const generateImage = async ({ url, html, options = {}, headers }, context = {}) => {
-    const requestLogger = context.logger ?? logger;
+    const requestLogger = context.logger ?? getLogger(logger);
     const type = options.type ?? 'png';
     const startedAt = Date.now();
     let pageIssues = null;

@@ -134,3 +134,16 @@ test('generateImage logs render start and completion with type and size', async 
   assert.equal(typeof done?.context.durationMs, 'number');
   assert.equal(done?.context.bytes, Buffer.from('fake-image').length);
 });
+
+test('generatePdf falls back to the async-context logger when context.logger is absent', async () => {
+  const { runWithLogger } = await import('../src/logger-context.js');
+  const controller = createController();
+  const capture = createCapturingLogger();
+
+  await runWithLogger(capture, () => controller.generatePdf({ url: 'https://example.com/report' }));
+
+  assert.ok(
+    capture.entries.some((e) => e.message === 'PDF render started'),
+    'controller must pick up the logger from the async context',
+  );
+});

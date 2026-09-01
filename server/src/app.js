@@ -10,6 +10,7 @@ import {
   serializeErrorDetails,
 } from './validation/errors.js';
 import { logger } from './logger.js';
+import { runWithLogger } from './logger-context.js';
 
 const getNodeMemoryUsageMiB = () => {
   const memory = process.memoryUsage();
@@ -54,7 +55,7 @@ export const createApp = ({ controller }) => {
 
     const startedAt = Date.now();
     try {
-      await next();
+      await runWithLogger(requestLogger, () => next());
     } finally {
       requestLogger.info({
         method: c.req.method,

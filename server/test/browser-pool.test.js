@@ -119,3 +119,44 @@ test('BrowserPool rejects with render timeout and recycles browser', async () =>
   assert.equal(launchStub.launchedBrowsers.length, 2);
   await pool.close();
 });
+
+test('BrowserPool logs render failures through the request-scoped logger when inside a context', async () => {
+  const { runWithLogger } = await import('../src/logger-context.js');
+  const launchStub = createLaunchBrowserStub();
+  const instanceEntries = [];
+  const requestEntries = [];
+  const instanceLogger = {
+    info() {}, debug() {},
+    warn(context, message) { instanceEntries.push({ context, message }); },
+  };
+  const requestLogger = {
+    info() {}, debug() {},
+    warn(context, message) { requestEntries.push({ context, message }); },
+  };
+
+  const pool = new BrowserPool({
+    size: 1,
+    maxPagesPerBrowser: 10,
+    renderTimeoutMs: 1_000,
+    launchBrowser: () => launchStub.launchBrowser(),
+    loggerInstance: instanceLogger,
+  });
+  await pool.init();
+
+  await assert.rejects(
+    runWithLogger(requestLogger, () => pool.usePage(async () => {
+      throw new Error('boom');
+    })),
+    /boom/,
+  );
+
+  const failureLog = requestEntries.find((e) => e.message === 'Render failed, browser will be recycled');
+  assert.ok(failureLog, 'render failure must be logged through the request-scoped logger');
+  assert.equal(
+    instanceEntries.find((e) => e.message === 'Render failed, browser will be recycled'),
+    undefined,
+    'render failure must not fall back to the pool instance logger inside a request context',
+  );
+
+  await pool.close();
+});

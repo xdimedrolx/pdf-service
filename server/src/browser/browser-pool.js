@@ -1,6 +1,7 @@
 import pLimit from 'p-limit';
 import puppeteer from 'puppeteer';
 import { logger } from '../logger.js';
+import { getLogger } from '../logger-context.js';
 
 const launchArgs = {
   headless: true,
@@ -61,6 +62,12 @@ export class BrowserPool {
     this.replacing = new Map();
   }
 
+  // Request-scoped logger when inside a render (carries correlationId),
+  // the pool's own logger otherwise (startup, shutdown).
+  log() {
+    return getLogger(this.logger);
+  }
+
   async init() {
     const browserPids = [];
 
@@ -70,7 +77,7 @@ export class BrowserPool {
       browserPids.push(this.browsers[i]?.process?.()?.pid ?? null);
     }
 
-    this.logger.info({
+    this.log().info({
       size: this.size,
       maxPagesPerBrowser: this.maxPagesPerBrowser,
       browserPids,
@@ -84,7 +91,7 @@ export class BrowserPool {
       try {
         await browser.close();
       } catch (error) {
-        this.logger.warn({ err: error }, 'Failed to close browser');
+        this.log().warn({ err: error }, 'Failed to close browser');
       }
     }));
   }
@@ -110,7 +117,7 @@ export class BrowserPool {
           ? 'render-timeout'
           : 'render-failed';
 
-        this.logger.warn({
+        this.log().warn({
           idx,
           browserPid,
           renderCount: this.renderCount[idx],
@@ -126,7 +133,7 @@ export class BrowserPool {
         try {
           await page.close();
         } catch (error) {
-          this.logger.warn({ err: error }, 'Failed to close page');
+          this.log().warn({ err: error }, 'Failed to close page');
         }
 
         if (recycleReason) {
@@ -134,7 +141,7 @@ export class BrowserPool {
         } else if (this.renderCount[idx] >= this.maxPagesPerBrowser) {
           await this.replaceBrowser(idx, 'max-pages');
         } else {
-          this.logger.debug({
+          this.log().debug({
             idx,
             browserPid,
             renderCount: this.renderCount[idx],
@@ -177,7 +184,7 @@ export class BrowserPool {
           await old.close();
         }
       } catch (error) {
-        this.logger.warn({
+        this.log().warn({
           idx,
           reason,
           oldPid,
@@ -188,7 +195,7 @@ export class BrowserPool {
 
       this.browsers[idx] = await this.launchBrowser();
       this.renderCount[idx] = 0;
-      this.logger.info({
+      this.log().info({
         idx,
         reason,
         oldPid,
